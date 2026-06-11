@@ -776,15 +776,15 @@ function renderMonth(){
   const monthName=new Date(+yr,+mo-1,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
   container.innerHTML=`
     <div class="month-stat-grid">
-      <div class="month-stat highlight">
-        <div class="ms-label">Grand Total — ${monthName}</div>
-        <div class="ms-value">${fmt(T.grand)}</div>
-        <div class="ms-sub">${data.length} day${data.length!==1?'s':''} logged · excl. tips</div>
-      </div>
       <div class="month-stat" style="grid-column:1/-1;background:linear-gradient(135deg,#0f3460,#533483);color:white;border:none;">
-        <div class="ms-label" style="color:rgba(255,255,255,0.7);">📊 Total POS Revenue</div>
+        <div class="ms-label" style="color:rgba(255,255,255,0.7);">📊 Total POS Revenue — ${monthName}</div>
         <div class="ms-value" style="color:white;">${fmt(T.retailPos+T.fnbPos)}</div>
-        <div class="ms-sub" style="color:rgba(255,255,255,0.6);">Retail POS ${fmt(T.retailPos)} · F&amp;B POS ${fmt(T.fnbPos)}</div>
+        <div class="ms-sub" style="color:rgba(255,255,255,0.6);">${data.length} day${data.length!==1?'s':''} logged &nbsp;·&nbsp; Retail ${fmt(T.retailPos)} · F&amp;B ${fmt(T.fnbPos)}</div>
+      </div>
+      <div class="month-stat highlight">
+        <div class="ms-label">Physical Grand Total — ${monthName}</div>
+        <div class="ms-value">${fmt(T.grand)}</div>
+        <div class="ms-sub">Cash + Card + Delivery − Tips</div>
       </div>
       <div class="month-stat cash-stat">
         <div class="ms-label">💵 Total Cash</div>
