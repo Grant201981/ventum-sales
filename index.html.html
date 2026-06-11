@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Daily Sales Log</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCbjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --primary: #1a1a2e; --accent: #e94560; --accent2: #0f3460;
+    --bg: #f4f6f9; --card: #ffffff; --border: #e0e4ea;
+    --text: #1a1a2e; --muted: #6b7280;
+    --success: #10b981; --danger: #ef4444;
+    --green-light: #ecfdf5; --red-light: #fef2f2;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08); --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 32px; }
+
+  /* HEADER */
+  .header { background: var(--primary); color: white; padding: 14px 16px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .subtitle { font-size: 11px; opacity: 0.6; margin-top: 1px; }
+  .sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 5px; animation: pulse 2s infinite; }
+  .sync-dot.offline { background: #ef4444; animation: none; }
+  .sync-dot.syncing { background: #f59e0b; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .sync-label { font-size: 11px; opacity: 0.8; }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .tab-btn { flex: 1; padding: 9px 4px; background: none; border: none; color: rgba(255,255,255,0.55); font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; text-align: center; }
+  .tab-btn.active { color: #fff; border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* DATE BAR */
+  .date-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 11px 14px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .date-bar label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .date-bar input, .staff-input { flex: 1; min-width: 120px; padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); -webkit-appearance: none; }
+  .date-bar input:focus, .staff-input:focus { outline: none; border-color: var(--accent2); }
+
+  /* SECTIONS */
+  .section { margin: 12px 14px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .section-header { padding: 10px 15px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: white; display: flex; align-items: center; gap: 7px; }
+  .section-header.retail { background: #0f3460; }
+  .section-header.fnb { background: #533483; }
+  .section-header.delivery { background: #1b6ca8; }
+  .section-header.tips { background: #1a8a5a; }
+  .section-header.variance { background: #c0392b; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+  .row.single { grid-template-columns: 1fr; }
+  .field { padding: 10px 12px; border-right: 1px solid var(--border); }
+  .field:last-child { border-right: none; }
+  .field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .field .input-wrap { position: relative; display: flex; align-items: center; }
+  .field .currency { position: absolute; left: 8px; font-size: 11px; font-weight: 700; color: var(--muted); pointer-events: none; }
+  .field input[type="number"] { width: 100%; padding: 8px 8px 8px 40px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 16px; font-weight: 500; background: var(--bg); color: var(--text); -webkit-appearance: none; -moz-appearance: textfield; }
+  .field input[type="number"]:focus { outline: none; border-color: var(--accent2); background: #fff; }
+  .field input[type="number"]::placeholder { color: #c0c5ce; }
+  .field input[type="number"]::-webkit-outer-spin-button, .field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .badge-cash { display: inline-block; background: #d1fae5; color: #065f46; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 20px; margin-left: 4px; }
+  .badge-card { display: inline-block; background: #dbeafe; color: #1e40af; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 20px; margin-left: 4px; }
+
+  /* TOTALS */
+  .totals-card { margin: 12px 14px 0; background: var(--primary); border-radius: var(--radius); padding: 13px; box-shadow: var(--shadow); color: white; }
+  .totals-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.6; margin-bottom: 9px; }
+  .totals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .total-item { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 11px; }
+  .total-item .t-label { font-size: 10px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.4px; }
+  .total-item .t-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .total-item.grand { grid-column: 1 / -1; background: rgba(233,69,96,0.25); border: 1px solid rgba(233,69,96,0.4); }
+  .total-item.grand .t-value { font-size: 21px; }
+
+  /* VARIANCE */
+  .variance-row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+  .variance-note { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .variance-note label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .variance-note textarea { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); resize: vertical; min-height: 60px; font-family: inherit; }
+  .variance-note textarea:focus { outline: none; border-color: #c0392b; }
+  .variance-display { padding: 10px 13px; font-size: 13px; font-weight: 600; }
+  .variance-display.positive { color: var(--success); background: var(--green-light); }
+  .variance-display.negative { color: var(--danger); background: var(--red-light); }
+  .variance-display.zero { color: var(--muted); }
+
+  /* HISTORY CARDS */
+  .history-entry { margin: 12px 14px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; }
+  .history-header { padding: 11px 13px; background: var(--accent2); color: white; display: flex; align-items: center; justify-content: space-between; }
+  .h-date { font-size: 13px; font-weight: 700; }
+  .h-staff { font-size: 11px; opacity: 0.75; margin-top: 1px; }
+  .h-total { font-size: 16px; font-weight: 800; }
+  .history-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 13px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .history-row:last-child { border-bottom: none; }
+  .h-label { color: var(--muted); font-weight: 500; }
+  .h-val { font-weight: 600; text-align: right; }
+  .h-val.vpos { color: var(--success); }
+  .h-val.vneg { color: var(--danger); }
+  .dept-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; border-bottom: 1px solid var(--border); }
+  .dept-name { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .dept-total { font-size: 15px; font-weight: 800; color: var(--text); }
+  .dept-var { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-left: 6px; }
+  .dept-var.balanced { background: #d1fae5; color: #065f46; }
+  .dept-var.over { background: #d1fae5; color: #065f46; }
+  .dept-var.short { background: #fee2e2; color: #991b1b; }
+  .dept-var.none { background: var(--bg); color: var(--muted); }
+  .dept-breakdown { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .expand-details { display: none; }
+  .expand-details.open { display: block; }
+  .expand-toggle { font-size: 11px; color: rgba(255,255,255,0.6); }
+  .btn-delete { background: rgba(255,255,255,0.15); border: none; color: white; width: 26px; height: 26px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .btn-edit { background: rgba(255,255,255,0.15); border: none; color: white; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* SUBMIT */
+  .submit-wrap { padding: 13px 14px; position: sticky; bottom: 0; background: linear-gradient(to top, var(--bg) 70%, transparent); }
+  .btn-submit { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(233,69,96,0.35); transition: all 0.2s; }
+  .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-submit.saving { background: #666; }
+
+  /* HISTORY */
+  .history-empty { text-align: center; padding: 48px 24px; color: var(--muted); }
+  .history-empty .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .history-header { padding: 10px 13px; background: var(--accent2); color: white; display: flex; justify-content: space-between; align-items: center; }
+  .history-header .h-date { font-size: 13px; font-weight: 700; }
+  .history-header .h-staff { font-size: 11px; opacity: 0.75; }
+  .history-header .h-total { font-size: 15px; font-weight: 800; }
+  .history-row { display: flex; justify-content: space-between; padding: 8px 13px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .h-label { color: var(--muted); }
+  .history-row .h-val { font-weight: 600; }
+  .history-row .h-val.vpos { color: var(--success); }
+  .history-row .h-val.vneg { color: var(--danger); }
+  .btn-delete { background: none; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 4px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+
+  /* MONTH */
+  .month-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 11px 14px; display: flex; align-items: center; gap: 10px; }
+  .month-bar label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .month-bar input[type="month"] { flex: 1; padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
+  .month-bar input[type="month"]:focus { outline: none; border-color: var(--accent2); }
+  .month-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 13px 14px 0; }
+  .month-stat { background: var(--card); border-radius: 10px; padding: 11px; box-shadow: var(--shadow); }
+  .month-stat .ms-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+  .month-stat .ms-value { font-size: 19px; font-weight: 800; }
+  .month-stat .ms-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .month-stat.highlight { background: var(--primary); color: white; grid-column: 1 / -1; }
+  .month-stat.highlight .ms-label { color: rgba(255,255,255,0.6); }
+  .month-stat.highlight .ms-value { color: white; font-size: 25px; }
+  .month-stat.highlight .ms-sub { color: rgba(255,255,255,0.55); }
+  .month-stat.cash-stat { background: #ecfdf5; border: 1px solid #a7f3d0; }
+  .month-stat.cash-stat .ms-value { color: #065f46; }
+  .month-stat.card-stat { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .month-stat.card-stat .ms-value { color: #1e40af; }
+  .chart-wrap { margin: 12px 14px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 13px; }
+  .chart-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 11px; }
+  .cash-section { margin: 12px 14px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .cash-header { padding: 10px 13px; background: #1a8a5a; color: white; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cash-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cash-row:last-child { border-bottom: none; }
+  .cash-row .cr-date { color: var(--muted); font-size: 12px; }
+  .cash-row .cr-staff { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .cash-row .cr-amount { font-weight: 700; color: #065f46; }
+  .cash-row .cr-tips { font-size: 11px; color: var(--muted); margin-top: 1px; text-align: right; }
+  .month-table-wrap { margin: 12px 14px 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .month-table-title { padding: 10px 13px; background: var(--accent2); color: white; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .month-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .month-table th { background: #f8fafc; padding: 7px 9px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .month-table th:first-child { text-align: left; }
+  .month-table td { padding: 7px 9px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .month-table td:first-child { text-align: left; font-weight: 600; }
+  .month-table tr:last-child td { border-bottom: none; }
+  .month-table .total-row td { background: #f0f4ff; font-weight: 700; }
+  .vpos { color: var(--success); font-weight: 600; }
+  .vneg { color: var(--danger); font-weight: 600; }
+
+  /* LOADING */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(26,26,46,0.7); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .loading-box { background: white; border-radius: 14px; padding: 24px 32px; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+  .spinner { width: 36px; height: 36px; border: 3px solid #e0e4ea; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-box p { font-size: 14px; font-weight: 600; color: var(--muted); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--primary); color: white; padding: 11px 22px; border-radius: 30px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.2); opacity: 0; transition: all 0.3s; white-space: nowrap; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* EXPORT */
+  .btn-export { background: none; border: 1px solid rgba(255,255,255,0.4); color: white; padding: 5px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+  /* VARIANCE DISPLAY */
+  .var-block { padding: 8px 13px; }
+  .var-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .var-row:last-child { border-bottom: none; }
+  .var-row .var-label { font-weight: 600; color: var(--muted); }
+  .var-row .var-val { font-weight: 700; }
+  .var-balanced { color: var(--success); }
+  .var-over { color: #059669; }
+  .var-short { color: var(--danger); }
+
+  @media (min-width: 480px) {
+    .section, .totals-card, .history-entry, .month-stat-grid, .chart-wrap, .month-table-wrap, .cash-section { margin-left: 20px; margin-right: 20px; }
+    .submit-wrap, .date-bar, .month-bar { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING (hidden by default) -->
+<div class="loading-overlay" id="loading-overlay" style="display:none;"></div>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📊 Daily Sales Log</h1>
+      <div class="subtitle"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Connecting…</span></div>
+    </div>
+    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('entry',this)">Entry</button>
+    <button class="tab-btn" onclick="switchTab('month',this)">Month</button>
+    <button class="tab-btn" onclick="switchTab('history',this)">History</button>
+  </div>
+</div>
+
+<!-- ═══ ENTRY TAB ═══ -->
+<div id="tab-entry" class="tab-content active">
+  <div class="date-bar">
+    <label>Date</label>
+    <input type="date" id="entry-date" />
+    <select class="staff-input" id="staff-name">
+      <option value="">Select staff name</option>
+      <option>Krish</option>
+      <option>Jay</option>
+      <option>Rhein</option>
+      <option>Glen</option>
+      <option>Grant</option>
+      <option>Krizel</option>
+      <option>Roger</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <div class="section-header retail">🛍️ Retail Sales</div>
+    <div class="row single">
+      <div class="field"><label>POS Total <span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">AUTO</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="retail-pos" placeholder="Auto" step="0.01" readonly style="background:#f0f4f8;color:var(--muted);cursor:default;"/></div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>POS Cash <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">POS</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="retail-pos-cash" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>POS Card <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">POS</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="retail-pos-card" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Physical Cash <span class="badge-cash">ACTUAL</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="retail-cash" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>Physical Card <span class="badge-card">ACTUAL</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="retail-card" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+    <div id="retail-pos-check" style="display:none;padding:7px 13px;font-size:12px;font-weight:600;"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header fnb">🍽️ F&B Sales</div>
+    <div class="row single">
+      <div class="field"><label>POS Total <span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">AUTO</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="fnb-pos" placeholder="Auto" step="0.01" readonly style="background:#f0f4f8;color:var(--muted);cursor:default;"/></div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>POS Cash <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">POS</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="fnb-pos-cash" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>POS Card <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:4px;">POS</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="fnb-pos-card" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Physical Cash <span class="badge-cash">ACTUAL</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="fnb-cash" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>Physical Card <span class="badge-card">ACTUAL</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="fnb-card" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+    <div id="fnb-pos-check" style="display:none;padding:7px 13px;font-size:12px;font-weight:600;"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header delivery">🚴 Delivery Platforms</div>
+    <div class="row">
+      <div class="field"><label>Deliveroo</label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="deliveroo" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>Careem</label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="careem" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+    <div class="row single">
+      <div class="field"><label>Keeta</label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="keeta" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header tips">💰 Tips</div>
+    <div class="row">
+      <div class="field"><label>Cash Tips <span class="badge-cash">CASH</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="tips-cash" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+      <div class="field"><label>Card Tips <span class="badge-card">CARD</span></label><div class="input-wrap"><span class="currency">AED</span><input type="number" id="tips-card" placeholder="0.00" step="0.01" min="0" oninput="recalc()"/></div></div>
+    </div>
+  </div>
+
+  <div class="totals-card">
+    <div class="totals-title">Auto-Calculated Totals</div>
+    <div class="totals-grid">
+      <div class="total-item"><div class="t-label">💵 Total Cash</div><div class="t-value" id="total-cash">AED 0.00</div></div>
+      <div class="total-item"><div class="t-label">💳 Total Card</div><div class="t-value" id="total-card">AED 0.00</div></div>
+      <div class="total-item"><div class="t-label">🚴 Delivery</div><div class="t-value" id="total-delivery">AED 0.00</div></div>
+      <div class="total-item"><div class="t-label">💰 Tips</div><div class="t-value" id="total-tips">AED 0.00</div></div>
+      <div class="total-item grand"><div class="t-label">🏆 GRAND TOTAL (excl. tips)</div><div class="t-value" id="grand-total">AED 0.00</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header retail" style="background:#0f3460;">⚖️ Retail Variance</div>
+    <div id="retail-var-display" class="var-block"><div class="var-row"><span class="var-label">Enter POS & physical amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header fnb" style="background:#533483;">⚖️ F&B Variance</div>
+    <div id="fnb-var-display" class="var-block"><div class="var-row"><span class="var-label">Enter POS & physical amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header variance">📝 Variance Notes</div>
+    <div class="variance-note">
+      <label>🛍️ Retail Notes</label>
+      <textarea id="variance-notes-retail" placeholder="Retail variance explanation (e.g. refund, void, till error...)"></textarea>
+    </div>
+    <div class="variance-note" style="border-bottom:none;">
+      <label>🍽️ F&amp;B Notes</label>
+      <textarea id="variance-notes-fnb" placeholder="F&amp;B variance explanation (e.g. tip discrepancy, declined card...)"></textarea>
+    </div>
+  </div>
+
+  <!-- hidden for save compat -->
+  <input type="hidden" id="variance-result"/>
+
+  <div class="submit-wrap">
+    <button class="btn-submit" id="save-btn" onclick="saveEntry()">✓ Save Daily Entry</button>
+  </div>
+</div>
+
+<!-- ═══ MONTH TAB ═══ -->
+<div id="tab-month" class="tab-content">
+  <div class="month-bar">
+    <label>Month</label>
+    <input type="month" id="month-picker" oninput="renderMonth()" />
+  </div>
+  <div id="month-stats-container"></div>
+  <div class="chart-wrap" id="chart-wrap" style="display:none;">
+    <div class="chart-title">Daily Sales (excl. tips)</div>
+    <canvas id="salesChart" height="160"></canvas>
+  </div>
+  <div class="cash-section" id="cash-section" style="display:none;">
+    <div class="cash-header">💵 Cash Taken Per Day</div>
+    <div id="cash-rows"></div>
+  </div>
+  <div class="month-table-wrap" id="month-table-wrap" style="display:none;">
+    <div class="month-table-title">Day-by-Day Breakdown</div>
+    <div style="overflow-x:auto;"><table class="month-table" id="month-table"></table></div>
+  </div>
+  <div style="padding-bottom:24px;"></div>
+</div>
+
+<!-- ═══ HISTORY TAB ═══ -->
+<div id="tab-history" class="tab-content">
+  <div id="history-container" style="padding-bottom:24px;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DB = 'https://ventum-sales-default-rtdb.firebaseio.com/sales';
+const C = 'AED ';
+let allData = {}; // keyed by Firebase push ID
+let editingId = null; // set when editing an existing entry
+let salesChart = null;
+// polling-based sync (no SSE)
+
+// ─── INIT ─────────────────────────────────────────
+const today = new Date();
+document.getElementById('entry-date').value = today.toISOString().split('T')[0];
+document.getElementById('month-picker').value = today.toISOString().slice(0,7);
+
+function fmt(n) { return C + (parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function v(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+// ─── FIREBASE ─────────────────────────────────────
+async function fbGet() {
+  const r = await fetch(DB + '.json');
+  if (!r.ok) throw new Error('DB read failed');
+  return await r.json(); // null or object of {pushId: entry}
+}
+
+async function fbPost(data) {
+  const ac = new AbortController();
+  const timer = setTimeout(()=>ac.abort(), 15000); // 15s timeout
+  try {
+    // No Content-Type header = no CORS preflight (avoids OPTIONS failure on mobile)
+    const r = await fetch(DB + '.json', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: ac.signal
+    });
+    clearTimeout(timer);
+    if (!r.ok) {
+      const errText = await r.text().catch(()=>'');
+      throw new Error('HTTP '+r.status+': '+errText.slice(0,100));
+    }
+    return (await r.json()).name;
+  } catch(e) {
+    clearTimeout(timer);
+    if(e.name==='AbortError') throw new Error('Connection timed out - try again');
+    throw e;
+  }
+}
+
+async function fbDelete(pushId) {
+  const r = await fetch(DB + '/' + pushId + '.json', { method: 'DELETE' });
+  if (!r.ok) throw new Error('DB delete failed');
+}
+
+// ─── POLLING SYNC ─────────────────────────────────
+let pollInterval = null;
+
+function hideOverlay() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+async function startSync() {
+  setSyncStatus('syncing');
+  // Hard fallback: always show the app within 4 seconds no matter what
+  setTimeout(hideOverlay, 4000);
+  await pollData();
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(pollData, 10000);
+}
+
+async function pollData() {
+  try {
+    const data = await fbGet();
+    allData = data || {};
+    hideOverlay();
+    setSyncStatus('live');
+    refreshAllViews();
+  } catch(err) {
+    hideOverlay(); // always show the app even if Firebase is unreachable
+    setSyncStatus('offline');
+    console.error('Poll error:', err);
+    setTimeout(pollData, 5000);
+  }
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state==='offline'?' offline':state==='syncing'?' syncing':'');
+  lbl.textContent = state==='live'?'Live — synced':state==='syncing'?'Connecting…':'Offline — retrying';
+}
+
+function refreshAllViews() {
+  const activeTab = document.querySelector('.tab-content.active')?.id;
+  if (activeTab === 'tab-history') renderHistory();
+  if (activeTab === 'tab-month') renderMonth();
+  // Always refresh history silently
+  if (activeTab !== 'tab-history') renderHistory();
+}
+
+// ─── RECALC ───────────────────────────────────────
+function varRow(label, posVal, physVal) {
+  if (posVal <= 0 && physVal <= 0) return '';
+  const diff = physVal - posVal;
+  let cls, txt;
+  if (Math.abs(diff) < 0.01) { cls='var-balanced'; txt='✓ Balanced'; }
+  else if (diff > 0) { cls='var-over'; txt='▲ Over '+fmt(diff); }
+  else { cls='var-short'; txt='▼ Short '+fmt(Math.abs(diff)); }
+  return `<div class="var-row"><span class="var-label">${label}</span><span class="var-val ${cls}">${txt}</span></div>`;
+}
+
+function recalc() {
+  const rc=v('retail-cash'),rk=v('retail-card');
+  const rpc=v('retail-pos-cash'),rpk=v('retail-pos-card');
+  const rp=rpc+rpk;
+  const retailPosEl=document.getElementById('retail-pos');
+  if(retailPosEl) retailPosEl.value=rp>0?rp.toFixed(2):'';
+  const fc=v('fnb-cash'),fk=v('fnb-card');
+  const fpc=v('fnb-pos-cash'),fpk=v('fnb-pos-card');
+  const dl=v('deliveroo'),cr=v('careem'),kt=v('keeta');
+  const tc=v('tips-cash'),tk=v('tips-card');
+  const totalDelivery=dl+cr+kt;
+  // F&B POS total auto-includes delivery
+  const fp=fpc+fpk+totalDelivery;
+  const fnbPosEl=document.getElementById('fnb-pos');
+  if(fnbPosEl) fnbPosEl.value=fp>0?fp.toFixed(2):'';
+  const totalCash=rc+fc, totalCard=rk+fk, totalTips=tc+tk;
+  const grand=totalCash+totalCard+totalDelivery-totalTips;
+
+  // Retail POS total is auto-calculated; hide check
+  const rCheck=document.getElementById('retail-pos-check');
+  if(rCheck) rCheck.style.display='none';
+
+  // F&B POS total is auto-calculated; hide the check div
+  const fCheck=document.getElementById('fnb-pos-check');
+  if(fCheck) fCheck.style.display='none';
+
+  document.getElementById('total-cash').textContent=fmt(totalCash);
+  document.getElementById('total-card').textContent=fmt(totalCard);
+  document.getElementById('total-delivery').textContent=fmt(totalDelivery);
+  document.getElementById('total-tips').textContent=fmt(totalTips);
+  document.getElementById('grand-total').textContent=fmt(grand);
+
+  // Retail variance display
+  const rVarEl=document.getElementById('retail-var-display');
+  if(rpc>0||rpk>0||rc>0||rk>0){
+    let html=varRow('💵 Cash',rpc,rc)+varRow('💳 Card',rpk,rk);
+    if((rpc>0||rpk>0)&&(rc>0||rk>0)){html+=varRow('📊 Total',rpc+rpk,rc+rk);}
+    rVarEl.innerHTML=html||'<div class="var-row"><span class="var-label">Enter amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div>';
+  } else {
+    rVarEl.innerHTML='<div class="var-row"><span class="var-label">Enter POS & physical amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div>';
+  }
+
+  // F&B variance display (tips deducted from physical since tips don't appear on POS)
+  const fVarEl=document.getElementById('fnb-var-display');
+  const fcNetTips=fc-tc, fkNetTips=fk-tk;
+  if(fpc>0||fpk>0||fc>0||fk>0){
+    let html=varRow('💵 Cash (excl. tips)',fpc,fcNetTips)+varRow('💳 Card (excl. tips)',fpk,fkNetTips);
+    if((fpc>0||fpk>0)&&(fc>0||fk>0)){html+=varRow('📊 Total (excl. tips)',fpc+fpk,fcNetTips+fkNetTips);}
+    if(tc>0||tk>0){html+='<div class="var-row"><span class="var-label" style="color:#6b7280;">💰 Tips in till</span><span class="var-val" style="color:#6b7280;">Cash '+('AED '+(tc).toFixed(2))+' · Card '+('AED '+(tk).toFixed(2))+'</span></div>';}
+    fVarEl.innerHTML=html||'<div class="var-row"><span class="var-label">Enter amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div>';
+  } else {
+    fVarEl.innerHTML='<div class="var-row"><span class="var-label">Enter POS & physical amounts above</span><span class="var-val" style="color:var(--muted)">—</span></div>';
+  }
+}
+
+// ─── SAVE ─────────────────────────────────────────
+async function saveEntry() {
+  const date=document.getElementById('entry-date').value;
+  const staff=document.getElementById('staff-name').value.trim();
+  if(!date){showToast('⚠️ Please select a date');return;}
+
+  const rc=v('retail-cash'),rk=v('retail-card');
+  const rpc=v('retail-pos-cash'),rpk=v('retail-pos-card');
+  const rp=rpc+rpk;
+  const fc=v('fnb-cash'),fk=v('fnb-card'),fp=v('fnb-pos');
+  const fpc=v('fnb-pos-cash'),fpk=v('fnb-pos-card');
+  const dl=v('deliveroo'),cr=v('careem'),kt=v('keeta');
+  const tc=v('tips-cash'),tk=v('tips-card');
+  const notes=(document.getElementById('variance-notes-retail').value.trim()||'');
+  const notesFnb=(document.getElementById('variance-notes-fnb').value.trim()||'');
+  const totalCash=rc+fc,totalCard=rk+fk,totalDelivery=dl+cr+kt,totalTips=tc+tk;
+  const grand=totalCash+totalCard+totalDelivery-totalTips;
+  const retailCashVar=rpc>0||rc>0?rc-rpc:null;
+  const retailCardVar=rpk>0||rk>0?rk-rpk:null;
+  const fnbCashVar=fpc>0||fc>0?fc-fpc:null;
+  const fnbCardVar=fpk>0||fk>0?fk-fpk:null;
+  const variance=retailCashVar!=null?retailCashVar+(retailCardVar||0)+(fnbCashVar||0)+(fnbCardVar||0):null;
+
+  // If editing, delete the original entry first
+  if(editingId){
+    try{ await fbDelete(editingId); }catch(e){ console.error('Could not delete old entry',e); }
+    editingId=null;
+  } else {
+    // Check for duplicate date+staff
+    const existing = Object.entries(allData||{}).find(([,e])=>e.date===date&&e.staff===staff);
+    if(existing){
+      if(!confirm('Entry for this date & staff already exists. Replace it?'))return;
+      await fbDelete(existing[0]);
+    }
+  }
+
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true; btn.textContent='Saving…'; btn.className='btn-submit saving';
+
+  const payload={date,staff,retailPos:rp,retailPosCash:rpc,retailPosCard:rpk,retailCash:rc,retailCard:rk,
+    fnbPos:fpc+fpk+totalDelivery,fnbPosCash:fpc,fnbPosCard:fpk,fnbCash:fc,fnbCard:fk,
+    deliveroo:dl,careem:cr,keeta:kt,tipsCash:tc,tipsCard:tk,
+    retailCashVar,retailCardVar,fnbCashVar,fnbCardVar,
+    totalCash,totalCard,totalDelivery,totalTips,
+    grand,variance,notes,notesFnb,savedAt:new Date().toISOString()};
+  // Backup to localStorage immediately so data is never lost
+  const backupKey = 'pending_'+Date.now();
+  try { localStorage.setItem(backupKey, JSON.stringify(payload)); } catch(e){}
+
+  let saved=false, lastErr='';
+  for(let attempt=1;attempt<=3;attempt++){
+    try {
+      await fbPost(payload);
+      saved=true; break;
+    } catch(err) {
+      lastErr=err.message||String(err);
+      console.error('Save attempt '+attempt+' failed:',lastErr);
+      if(attempt<3){ btn.textContent='Retrying ('+attempt+'/3)…'; await new Promise(r=>setTimeout(r,3000)); }
+    }
+  }
+  if(saved){
+    try { localStorage.removeItem(backupKey); } catch(e){}
+    showToast('✓ Saved & synced!'); resetForm();
+  } else {
+    showToast('⚠️ Saved locally — will retry when online');
+    resetForm();
+    // Schedule background retry
+    setTimeout(()=>retrySend(backupKey, payload), 30000);
+  }
+  btn.disabled=false; btn.textContent='✓ Save Daily Entry'; btn.className='btn-submit';
+}
+
+async function retrySend(key, payload){
+  try {
+    await fbPost(payload);
+    try { localStorage.removeItem(key); } catch(e){}
+    showToast('✓ Synced to database!');
+    await pollData();
+  } catch(e){
+    // Try again in 2 minutes
+    setTimeout(()=>retrySend(key, payload), 120000);
+  }
+}
+
+function resetForm(){
+  ['retail-pos','retail-pos-cash','retail-pos-card','retail-cash','retail-card','fnb-pos','fnb-pos-cash','fnb-pos-card','fnb-cash','fnb-card','deliveroo','careem','keeta','tips-cash','tips-card'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('variance-notes-retail').value='';
+  document.getElementById('variance-notes-fnb').value='';
+  document.getElementById('staff-name').value='';
+  document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
+  editingId=null;
+  const btn=document.getElementById('save-btn');
+  if(btn){ btn.textContent='✓ Save Daily Entry'; btn.style.background=''; }
+  recalc();
+}
+
+// ─── SORTED DATA HELPER ───────────────────────────
+function getSorted() {
+  return Object.entries(allData||{})
+    .map(([id,e])=>({...e,_id:id}))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+// ─── HISTORY ──────────────────────────────────────
+function deptVar(cashVar, cardVar, posCash, posCard){
+  // Only show variance if POS breakdown was actually entered
+  if((posCash||0)===0 && (posCard||0)===0) return {cls:'none',txt:'—'};
+  const total=(cashVar||0)+(cardVar||0);
+  if(cashVar==null&&cardVar==null) return {cls:'none',txt:'—'};
+  if(Math.abs(total)<0.01) return {cls:'balanced',txt:'✓ Balanced'};
+  if(total>0) return {cls:'over',txt:'▲ Over '+fmt(total)};
+  return {cls:'short',txt:'▼ Short '+fmt(Math.abs(total))};
+}
+
+function toggleHistory(id){
+  const el=document.getElementById('det-'+id);
+  if(el) el.classList.toggle('open');
+}
+
+function renderHistory(){
+  const data=getSorted();
+  const container=document.getElementById('history-container');
+  if(!data.length){container.innerHTML='<div class="history-empty"><div class="empty-icon">📋</div><p>No entries yet.<br>Start logging in the Entry tab.</p></div>';return;}
+  container.innerHTML=data.map(function(e){
+    const fd=new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    const retailTotal=(e.retailCash||0)+(e.retailCard||0);
+    const delivery=(e.deliveroo||0)+(e.careem||0)+(e.keeta||0);
+    const fnbTotal=(e.fnbCash||0)+(e.fnbCard||0)+delivery;
+    const tips=(e.tipsCash||0)+(e.tipsCard||0);
+    const rv=deptVar(e.retailCashVar,e.retailCardVar,e.retailPosCash,e.retailPosCard);
+    const fv=deptVar(e.fnbCashVar,e.fnbCardVar,e.fnbPosCash,e.fnbPosCard);
+
+    var retailPosTotal=(e.retailPos||0);
+    var fnbPosTotal=(e.fnbPos||0);
+    var retailRow=(retailPosTotal>0||retailTotal>0)?
+      '<div class="dept-row">'+
+        '<div><div class="dept-name">Retail</div>'+
+        '<div class="dept-breakdown">POS '+fmt(retailPosTotal)+' &nbsp;|&nbsp; Cash '+fmt(e.retailCash||0)+' | Card '+fmt(e.retailCard||0)+'</div></div>'+
+        '<div style="text-align:right"><div class="dept-total">'+fmt(retailPosTotal)+'</div>'+
+        '<span class="dept-var '+rv.cls+'">'+rv.txt+'</span></div>'+
+      '</div>':'';
+
+    var fnbRow=(fnbPosTotal>0||fnbTotal>0)?
+      '<div class="dept-row">'+
+        '<div><div class="dept-name">F&amp;B</div>'+
+        '<div class="dept-breakdown">POS '+fmt(fnbPosTotal)+' &nbsp;|&nbsp; Cash '+fmt(e.fnbCash||0)+' | Card '+fmt(e.fnbCard||0)+(delivery>0?' | Del '+fmt(delivery):'')+'</div></div>'+
+        '<div style="text-align:right"><div class="dept-total">'+fmt(fnbPosTotal)+'</div>'+
+        '<span class="dept-var '+fv.cls+'">'+fv.txt+'</span></div>'+
+      '</div>':'';
+
+    var posRetail=(e.retailPosCash||0)+(e.retailPosCard||0);
+    var posFnb=(e.fnbPosCash||0)+(e.fnbPosCard||0)+delivery;
+    var details=
+      '<div class="expand-details" id="det-'+e._id+'">'+
+        (posRetail>0?'<div class="history-row"><span class="h-label">POS Retail Cash/Card</span><span class="h-val">'+fmt(e.retailPosCash||0)+' / '+fmt(e.retailPosCard||0)+'</span></div>':'')+
+        (posFnb>0?'<div class="history-row"><span class="h-label">POS F&amp;B Cash/Card</span><span class="h-val">'+fmt(e.fnbPosCash||0)+' / '+fmt(e.fnbPosCard||0)+'</span></div>':'')+
+        (e.deliveroo?'<div class="history-row"><span class="h-label">Deliveroo</span><span class="h-val">'+fmt(e.deliveroo)+'</span></div>':'')+
+        (e.careem?'<div class="history-row"><span class="h-label">Careem</span><span class="h-val">'+fmt(e.careem)+'</span></div>':'')+
+        (e.keeta?'<div class="history-row"><span class="h-label">Keeta</span><span class="h-val">'+fmt(e.keeta)+'</span></div>':'')+
+        (tips>0?'<div class="history-row"><span class="h-label">Tips Cash/Card</span><span class="h-val">'+fmt(e.tipsCash||0)+' / '+fmt(e.tipsCard||0)+'</span></div>':'')+
+        (e.notes?'<div class="history-row"><span class="h-label" style="font-style:italic;">Retail note: '+e.notes+'</span></div>':'')+
+        (e.notesFnb?'<div class="history-row"><span class="h-label" style="font-style:italic;">F&amp;B note: '+e.notesFnb+'</span></div>':'')+
+      '</div>';
+
+    return '<div class="history-entry">'+
+      '<div class="history-header" data-id="'+e._id+'" onclick="toggleHistory(this.dataset.id)">'+
+        '<div><div class="h-date">'+fd+'</div><div class="h-staff">'+(e.staff||'No name')+'</div></div>'+
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+          '<div><div class="h-total">'+fmt(e.grand||0)+'</div><div class="expand-toggle">tap for details</div></div>'+
+          '<button class="btn-edit" data-id="'+e._id+'" onclick="event.stopPropagation();loadEntry(this.dataset.id)" title="Edit">✏</button>'+
+          '<button class="btn-delete" data-id="'+e._id+'" onclick="event.stopPropagation();deleteEntry(this.dataset.id)" title="Delete">x</button>'+
+        '</div>'+
+      '</div>'+
+      retailRow+fnbRow+details+
+    '</div>';
+  }).join('');
+}
+
+function loadEntry(id){
+  const e=allData[id];
+  if(!e){showToast('Entry not found');return;}
+  editingId=id;
+  // Populate form fields
+  document.getElementById('entry-date').value=e.date||'';
+  document.getElementById('staff-name').value=e.staff||'';
+  document.getElementById('retail-pos').value=e.retailPos||'';
+  document.getElementById('retail-pos-cash').value=e.retailPosCash||'';
+  document.getElementById('retail-pos-card').value=e.retailPosCard||'';
+  document.getElementById('retail-cash').value=e.retailCash||'';
+  document.getElementById('retail-card').value=e.retailCard||'';
+  document.getElementById('fnb-pos-cash').value=e.fnbPosCash||'';
+  document.getElementById('fnb-pos-card').value=e.fnbPosCard||'';
+  document.getElementById('fnb-cash').value=e.fnbCash||'';
+  document.getElementById('fnb-card').value=e.fnbCard||'';
+  document.getElementById('deliveroo').value=e.deliveroo||'';
+  document.getElementById('careem').value=e.careem||'';
+  document.getElementById('keeta').value=e.keeta||'';
+  document.getElementById('tips-cash').value=e.tipsCash||'';
+  document.getElementById('tips-card').value=e.tipsCard||'';
+  document.getElementById('variance-notes-retail').value=e.notes||'';
+  document.getElementById('variance-notes-fnb').value=e.notesFnb||'';
+  recalc();
+  // Switch to Entry tab and update button
+  switchTab('entry');
+  const btn=document.getElementById('save-btn');
+  btn.textContent='✓ Update Entry';
+  btn.style.background='#0f3460';
+  showToast('Entry loaded — make changes and tap Update');
+}
+
+async function deleteEntry(id){
+  const pin=prompt('Enter admin PIN to delete:');
+  if(pin===null) return;
+  if(pin!=='3240'){showToast('❌ Incorrect PIN');return;}
+  try{
+    await fbDelete(id);
+    showToast('Entry deleted');
+  }catch(err){showToast('❌ Delete failed');console.error(err);}
+}
+
+// ─── MONTH VIEW ───────────────────────────────────
+function renderMonth(){
+  const ym=document.getElementById('month-picker').value;
+  if(!ym)return;
+  const data=getSorted().filter(e=>e.date.startsWith(ym)).reverse();
+  const container=document.getElementById('month-stats-container');
+  if(!data.length){
+    container.innerHTML=`<div class="history-empty" style="margin-top:20px;"><div class="empty-icon">📅</div><p>No entries for this month yet.</p></div>`;
+    document.getElementById('chart-wrap').style.display='none';
+    document.getElementById('cash-section').style.display='none';
+    document.getElementById('month-table-wrap').style.display='none';
+    return;
+  }
+  const T=data.reduce((a,e)=>{
+    a.retailCash+=e.retailCash||0;a.retailCard+=e.retailCard||0;
+    a.fnbCash+=e.fnbCash||0;a.fnbCard+=e.fnbCard||0;
+    a.deliveroo+=e.deliveroo||0;a.careem+=e.careem||0;a.keeta+=e.keeta||0;
+    a.tipsCash+=e.tipsCash||0;a.tipsCard+=e.tipsCard||0;
+    a.grand+=e.grand||0;a.totalCash+=e.totalCash||0;a.totalCard+=e.totalCard||0;
+    a.totalDelivery+=e.totalDelivery||0;a.totalTips+=e.totalTips||0;
+    a.variances+=e.variance!=null?1:0;a.varianceSum+=e.variance||0;
+    a.retailPos+=e.retailPos||0;a.fnbPos+=e.fnbPos||0;
+    return a;
+  },{retailCash:0,retailCard:0,fnbCash:0,fnbCard:0,deliveroo:0,careem:0,keta:0,tipsCash:0,tipsCard:0,grand:0,totalCash:0,totalCard:0,totalDelivery:0,totalTips:0,variances:0,varianceSum:0,retailPos:0,fnbPos:0});
+
+  const [yr,mo]=ym.split('-');
+  const monthName=new Date(+yr,+mo-1,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+  container.innerHTML=`
+    <div class="month-stat-grid">
+      <div class="month-stat highlight">
+        <div class="ms-label">Grand Total — ${monthName}</div>
+        <div class="ms-value">${fmt(T.grand)}</div>
+        <div class="ms-sub">${data.length} day${data.length!==1?'s':''} logged · excl. tips</div>
+      </div>
+      <div class="month-stat" style="grid-column:1/-1;background:linear-gradient(135deg,#0f3460,#533483);color:white;border:none;">
+        <div class="ms-label" style="color:rgba(255,255,255,0.7);">📊 Total POS Revenue</div>
+        <div class="ms-value" style="color:white;">${fmt(T.retailPos+T.fnbPos)}</div>
+        <div class="ms-sub" style="color:rgba(255,255,255,0.6);">Retail POS ${fmt(T.retailPos)} · F&amp;B POS ${fmt(T.fnbPos)}</div>
+      </div>
+      <div class="month-stat cash-stat">
+        <div class="ms-label">💵 Total Cash</div>
+        <div class="ms-value">${fmt(T.totalCash)}</div>
+        <div class="ms-sub">Retail + F&B cash</div>
+      </div>
+      <div class="month-stat card-stat">
+        <div class="ms-label">💳 Total Card</div>
+        <div class="ms-value">${fmt(T.totalCard)}</div>
+        <div class="ms-sub">Retail + F&B card</div>
+      </div>
+      <div class="month-stat">
+        <div class="ms-label">🚴 Delivery</div>
+        <div class="ms-value">${fmt(T.totalDelivery)}</div>
+        <div class="ms-sub">Deliveroo · Careem · Keta</div>
+      </div>
+      <div class="month-stat">
+        <div class="ms-label">💰 Tips</div>
+        <div class="ms-value">${fmt(T.totalTips)}</div>
+        <div class="ms-sub">Cash ${fmt(T.tipsCash)} · Card ${fmt(T.tipsCard)}</div>
+      </div>
+      <div class="month-stat" style="grid-column:1/-1;background:${T.varianceSum<0?'#fef2f2':T.varianceSum>0?'#ecfdf5':'#f8fafc'};border:1px solid ${T.varianceSum<0?'#fecaca':T.varianceSum>0?'#a7f3d0':'#e0e4ea'}">
+        <div class="ms-label">⚖️ Net Variance This Month</div>
+        <div class="ms-value" style="color:${T.varianceSum<0?'#dc2626':T.varianceSum>0?'#059669':'#6b7280'}">${T.varianceSum===0?'Balanced':T.varianceSum>0?'▲ '+fmt(T.varianceSum):'▼ '+fmt(Math.abs(T.varianceSum))}</div>
+        <div class="ms-sub">${T.variances} variance entr${T.variances!==1?'ies':'y'} recorded</div>
+      </div>
+    </div>`;
+
+  // Chart
+  const labels=data.map(e=>new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+  document.getElementById('chart-wrap').style.display='block';
+  if(salesChart)salesChart.destroy();
+  salesChart=new Chart(document.getElementById('salesChart').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Cash',data:data.map(e=>+(e.totalCash||0).toFixed(2)),backgroundColor:'#10b981',borderRadius:4,stack:'a'},
+      {label:'Card',data:data.map(e=>+(e.totalCard||0).toFixed(2)),backgroundColor:'#3b82f6',borderRadius:4,stack:'a'},
+      {label:'Delivery',data:data.map(e=>+(e.totalDelivery||0).toFixed(2)),backgroundColor:'#8b5cf6',borderRadius:4,stack:'a'}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12,boxWidth:10}},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': AED '+ctx.raw.toFixed(2)}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{ticks:{callback:v=>'AED '+v,font:{size:10}},grid:{color:'#f0f0f0'}}}}
+  });
+
+  // Cash tracker
+  document.getElementById('cash-section').style.display='block';
+  const cashRows=data.map(e=>{
+    const d=new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    return '<div class="cash-row"><div><div class="cr-date">'+d+'</div><div class="cr-staff">'+(e.staff||'\u2014')+'</div></div><div style="text-align:right"><div class="cr-amount">'+fmt(e.totalCash||0)+'</div>'+(e.tipsCash>0?'<div class="cr-tips">+ '+fmt(e.tipsCash)+' tips</div>':'')+'</div></div>';
+  });
+  cashRows.push('<div class="cash-row" style="background:#ecfdf5;font-weight:700;"><div style="color:#065f46;">MONTH TOTAL</div><div class="cr-amount">'+fmt(T.totalCash)+'</div></div>');
+  document.getElementById('cash-rows').innerHTML=cashRows.join('');
+
+  // Table
+  document.getElementById('month-table-wrap').style.display='block';
+  const thead='<thead><tr><th>Date</th><th>R.Cash</th><th>R.Card</th><th>F&amp;B Cash</th><th>F&amp;B Card</th><th>Deliveroo</th><th>Careem</th><th>Keeta</th><th>Tips</th><th>Total</th><th>Var.</th></tr></thead>';
+  const tbody='<tbody>'+data.map(e=>{
+    const d=new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
+    const vr=e.variance;
+    const vrCell=vr==null?'<td>\u2014</td>':vr===0?'<td>\u2713</td>':vr>0?'<td class="vpos">\u25b2'+fmt(Math.abs(vr))+'</td>':'<td class="vneg">\u25bc'+fmt(Math.abs(vr))+'</td>';
+    return '<tr><td>'+d+(e.staff?'<br><span style="font-size:10px;color:#999">'+e.staff+'</span>':'')+'</td><td>'+fmt(e.retailCash||0)+'</td><td>'+fmt(e.retailCard||0)+'</td><td>'+fmt(e.fnbCash||0)+'</td><td>'+fmt(e.fnbCard||0)+'</td><td>'+fmt(e.deliveroo||0)+'</td><td>'+fmt(e.careem||0)+'</td><td>'+fmt(e.keeta||0)+'</td><td>'+fmt((e.tipsCash||0)+(e.tipsCard||0))+'</td><td><strong>'+fmt(e.grand||0)+'</strong></td>'+vrCell+'</tr>';
+  }).join('')+'<tr style="background:#f8fafc;font-weight:700;"><td>TOTAL</td><td>'+fmt(T.retailCash)+'</td><td>'+fmt(T.retailCard)+'</td><td>'+fmt(T.fnbCash)+'</td><td>'+fmt(T.fnbCard)+'</td><td>'+fmt(T.deliveroo)+'</td><td>'+fmt(T.careem)+'</td><td>'+fmt(T.keeta||0)+'</td><td>'+fmt(T.totalTips)+'</td><td><strong>'+fmt(T.grand)+'</strong></td><td>'+(T.varianceSum===0?'\u2713':T.varianceSum>0?'\u25b2'+fmt(T.varianceSum):'\u25bc'+fmt(Math.abs(T.varianceSum)))+'</td></tr></tbody>';
+  document.getElementById('month-table').innerHTML=thead+tbody;
+}
+
+// \u2500\u2500\u2500 TABS
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'month') renderMonth();
+  if (name === 'history') renderHistory();
+}
+
+// \u2500\u2500\u2500 TOAST
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;white-space:nowrap;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.style.opacity = '0'; }, 2500);
+}
+
+// \u2500\u2500\u2500 EXPORT CSV
+function exportCSV() {
+  const data = getSorted();
+  if (!data.length) { showToast('No data to export'); return; }
+  const rows = [['Date','Staff','Retail POS','Retail POS Cash','Retail POS Card','Retail Cash','Retail Card','F&B POS','F&B POS Cash','F&B POS Card','F&B Cash','F&B Card','Deliveroo','Careem','Keeta','Tips Cash','Tips Card','Total Cash','Total Card','Delivery','Tips','Grand Total','R.Cash Var','R.Card Var','F&B Cash Var','F&B Card Var','Notes']];
+  data.forEach(function(e){ rows.push([e.date,e.staff||'',e.retailPos||0,e.retailPosCash||0,e.retailPosCard||0,e.retailCash||0,e.retailCard||0,e.fnbPos||0,e.fnbPosCash||0,e.fnbPosCard||0,e.fnbCash||0,e.fnbCard||0,e.deliveroo||0,e.careem||0,e.keeta||0,e.tipsCash||0,e.tipsCard||0,e.totalCash||0,e.totalCard||0,e.totalDelivery||0,e.totalTips||0,e.grand||0,e.retailCashVar!=null?e.retailCashVar:'',e.retailCardVar!=null?e.retailCardVar:'',e.fnbCashVar!=null?e.fnbCashVar:'',e.fnbCardVar!=null?e.fnbCardVar:'',e.notes||'']); });
+  const csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'ventum-sales-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  showToast('CSV downloaded');
+}
+
+// \u2500\u2500\u2500 START
+startSync();
+</script>
+</body>
+</html>
