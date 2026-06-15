@@ -661,34 +661,48 @@ function renderHistory(){
 
     var retailPosTotal=(e.retailPos||0);
     var fnbPosTotal=(e.fnbPos||0);
+    var rPosCash=(e.retailPosCash||0), rPosCard=(e.retailPosCard||0);
+    var fPosCash=(e.fnbPosCash||0), fPosCard=(e.fnbPosCard||0);
+    var totalPOS=retailPosTotal+fnbPosTotal;
+
     var retailRow=(retailPosTotal>0||retailTotal>0)?
       '<div class="dept-row">'+
-        '<div><div class="dept-name">Retail</div>'+
-        '<div class="dept-breakdown">POS '+fmt(retailPosTotal)+' &nbsp;|&nbsp; Cash '+fmt(e.retailCash||0)+' | Card '+fmt(e.retailCard||0)+'</div></div>'+
+        '<div><div class="dept-name">🛍️ Retail</div>'+
+        '<div class="dept-breakdown">POS Cash '+fmt(rPosCash)+' · POS Card '+fmt(rPosCard)+'</div>'+
+        '<div class="dept-breakdown" style="margin-top:1px;color:#9ca3af;">Physical Cash '+fmt(e.retailCash||0)+' · Physical Card '+fmt(e.retailCard||0)+'</div>'+
+        '</div>'+
         '<div style="text-align:right"><div class="dept-total">'+fmt(retailPosTotal)+'</div>'+
         '<span class="dept-var '+rv.cls+'">'+rv.txt+'</span></div>'+
       '</div>':'';
 
     var fnbRow=(fnbPosTotal>0||fnbTotal>0)?
       '<div class="dept-row">'+
-        '<div><div class="dept-name">F&amp;B</div>'+
-        '<div class="dept-breakdown">POS '+fmt(fnbPosTotal)+' &nbsp;|&nbsp; Cash '+fmt(e.fnbCash||0)+' | Card '+fmt(e.fnbCard||0)+(delivery>0?' | Del '+fmt(delivery):'')+'</div></div>'+
+        '<div><div class="dept-name">🍽️ F&amp;B</div>'+
+        '<div class="dept-breakdown">POS Cash '+fmt(fPosCash)+' · POS Card '+fmt(fPosCard)+(delivery>0?' · Del '+fmt(delivery):'')+'</div>'+
+        '<div class="dept-breakdown" style="margin-top:1px;color:#9ca3af;">Physical Cash '+fmt(e.fnbCash||0)+' · Physical Card '+fmt(e.fnbCard||0)+'</div>'+
+        '</div>'+
         '<div style="text-align:right"><div class="dept-total">'+fmt(fnbPosTotal)+'</div>'+
         '<span class="dept-var '+fv.cls+'">'+fv.txt+'</span></div>'+
       '</div>':'';
 
-    var posRetail=(e.retailPosCash||0)+(e.retailPosCard||0);
-    var posFnb=(e.fnbPosCash||0)+(e.fnbPosCard||0)+delivery;
+    var totalPOSRow=(totalPOS>0)?
+      '<div class="dept-row" style="background:#f0f4ff;border-top:2px solid #e0e4ea;">'+
+        '<div><div class="dept-name" style="color:#0f3460;font-size:13px;">📊 Total POS</div>'+
+        '<div class="dept-breakdown">Retail '+fmt(retailPosTotal)+' · F&amp;B '+fmt(fnbPosTotal)+'</div>'+
+        '</div>'+
+        '<div style="text-align:right"><div class="dept-total" style="color:#0f3460;font-size:18px;">'+fmt(totalPOS)+'</div></div>'+
+      '</div>':'';
+
     var details=
       '<div class="expand-details" id="det-'+e._id+'">'+
-        (posRetail>0?'<div class="history-row"><span class="h-label">POS Retail Cash/Card</span><span class="h-val">'+fmt(e.retailPosCash||0)+' / '+fmt(e.retailPosCard||0)+'</span></div>':'')+
-        (posFnb>0?'<div class="history-row"><span class="h-label">POS F&amp;B Cash/Card</span><span class="h-val">'+fmt(e.fnbPosCash||0)+' / '+fmt(e.fnbPosCard||0)+'</span></div>':'')+
-        (e.deliveroo?'<div class="history-row"><span class="h-label">Deliveroo</span><span class="h-val">'+fmt(e.deliveroo)+'</span></div>':'')+
-        (e.careem?'<div class="history-row"><span class="h-label">Careem</span><span class="h-val">'+fmt(e.careem)+'</span></div>':'')+
-        (e.keeta?'<div class="history-row"><span class="h-label">Keeta</span><span class="h-val">'+fmt(e.keeta)+'</span></div>':'')+
-        (tips>0?'<div class="history-row"><span class="h-label">Tips Cash/Card</span><span class="h-val">'+fmt(e.tipsCash||0)+' / '+fmt(e.tipsCard||0)+'</span></div>':'')+
-        (e.notes?'<div class="history-row"><span class="h-label" style="font-style:italic;">Retail note: '+e.notes+'</span></div>':'')+
-        (e.notesFnb?'<div class="history-row"><span class="h-label" style="font-style:italic;">F&amp;B note: '+e.notesFnb+'</span></div>':'')+
+        (delivery>0?
+          (e.deliveroo?'<div class="history-row"><span class="h-label">Deliveroo</span><span class="h-val">'+fmt(e.deliveroo)+'</span></div>':'')+
+          (e.careem?'<div class="history-row"><span class="h-label">Careem</span><span class="h-val">'+fmt(e.careem)+'</span></div>':'')+
+          (e.keeta?'<div class="history-row"><span class="h-label">Keeta</span><span class="h-val">'+fmt(e.keeta)+'</span></div>':'')
+        :'')+
+        (tips>0?'<div class="history-row"><span class="h-label">💰 Tips Cash / Card</span><span class="h-val">'+fmt(e.tipsCash||0)+' / '+fmt(e.tipsCard||0)+'</span></div>':'')+
+        (e.notes?'<div class="history-row"><span class="h-label" style="font-style:italic;color:#92400e;">📝 Retail: '+e.notes+'</span></div>':'')+
+        (e.notesFnb?'<div class="history-row"><span class="h-label" style="font-style:italic;color:#92400e;">📝 F&amp;B: '+e.notesFnb+'</span></div>':'')+
       '</div>';
 
     return '<div class="history-entry">'+
@@ -700,7 +714,7 @@ function renderHistory(){
           '<button class="btn-delete" data-id="'+e._id+'" onclick="event.stopPropagation();deleteEntry(this.dataset.id)" title="Delete">x</button>'+
         '</div>'+
       '</div>'+
-      retailRow+fnbRow+details+
+      retailRow+fnbRow+totalPOSRow+details+
     '</div>';
   }).join('');
 }
