@@ -1,6 +1,6 @@
 name: Sync Firebase Sales Data
 
-on:
+"on":
   schedule:
     - cron: '0 20 * * *'  # 8pm UTC = midnight UAE time
   workflow_dispatch:       # Also allows manual trigger
