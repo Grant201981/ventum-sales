@@ -943,7 +943,46 @@ async function loadBankingMonths(){
     Array.from(months).sort().reverse().forEach(function(mo){var o=document.createElement('option');o.value=mo;var p=mo.split('-');o.textContent=new Date(p[0],p[1]-1).toLocaleString('en-AE',{month:'long',year:'numeric'});sel.appendChild(o);});
   }catch(e){console.error(e);}
 }
-function loadBankingDates(){var month=document.getElementById('b-month').value;var sel=document.getElementById('b-date');sel.innerHTML='<option value="">Select date...</option>';hideBankSections();var ms=document.getElementById('b-month-summary');if(!month||!_salesCache){if(ms)ms.style.display='none';return;}var entries=Object.values(_salesCache).filter(function(e){return e.date&&e.date.startsWith(month);});var mTot=entries.reduce(function(s,e){return s+(parseFloat(e.totalCash)||0);},0);var mRet=entries.reduce(function(s,e){return s+(parseFloat(e.retailCash)||0);},0);var mFnb=entries.reduce(function(s,e){return s+(parseFloat(e.fnbCash)||0);},0);var mTips=entries.reduce(function(s,e){return s+(parseFloat(e.tipsCash)||0);},0);var mCard=entries.reduce(function(s,e){return s+(parseFloat(e.tipsCard)||0);},0);if(ms){ms.innerHTML='<div class="section-title">&#x1F4C5; Month Cash Summary</div><div class="row-group"><div class="input-row"><span class="input-label">Retail Cash</span><span class="value-display">'+bfmt(mRet)+'</span></div><div class="input-row"><span class="input-label">Coffee / F&B Cash</span><span class="value-display">'+bfmt(mFnb)+'</span></div><div class="input-row"><span class="input-label">Cash Tips</span><span class="value-display">'+bfmt(mTips)+'</span></div><div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash</span><span class="value-display" style="font-weight:700;color:var(--accent);">'+bfmt(mTot)+'</span></div><div class="input-row"><span class="input-label" style="color:var(--muted);">Card Tips (settled w/ card)</span><span class="value-display" style="color:var(--muted);">'+bfmt(mCard)+'</span></div><div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.8rem;">'+entries.length+' day(s) recorded</span></div></div>';ms.style.display='';}Object.entries(_salesCache).filter(function(kv){return kv[1].date&&kv[1].date.startsWith(month);}).sort(function(a,b){return b[1].date.localeCompare(a[1].date);}).forEach(function(kv){var o=document.createElement('option');o.value=kv[0];o.textContent=new Date(kv[1].date+'T00:00:00').toLocaleDateString('en-AE',{weekday:'short',day:'numeric',month:'short'});sel.appendChild(o);});}
+function loadBankingDates(){
+  var month=document.getElementById('b-month').value;
+  var sel=document.getElementById('b-date');
+  sel.innerHTML='<option value="">Select date...</option>';
+  hideBankSections();
+  var ms=document.getElementById('b-month-summary');
+  if(!month||!_salesCache){if(ms)ms.style.display='none';return;}
+  try{
+    var allVals=Object.values(_salesCache);
+    var entries=allVals.filter(function(e){return e&&e.date&&e.date.startsWith(month);});
+    var mTot=0,mRet=0,mFnb=0,mTips=0,mCard=0;
+    entries.forEach(function(e){
+      mTot+=(parseFloat(e.totalCash)||0);
+      mRet+=(parseFloat(e.retailCash)||0);
+      mFnb+=(parseFloat(e.fnbCash)||0);
+      mTips+=(parseFloat(e.tipsCash)||0);
+      mCard+=(parseFloat(e.tipsCard)||0);
+    });
+    if(ms){
+      ms.innerHTML='<div class="section-title">&#x1F4C5; '+new Date(month+'-02').toLocaleString("en-AE",{month:"long",year:"numeric"})+' Cash Summary</div>'
+        +'<div class="row-group">'
+        +'<div class="input-row"><span class="input-label">Retail Cash</span><span class="value-display">'+bfmt(mRet)+'</span></div>'
+        +'<div class="input-row"><span class="input-label">Coffee / F&B Cash</span><span class="value-display">'+bfmt(mFnb)+'</span></div>'
+        +'<div class="input-row"><span class="input-label">Cash Tips</span><span class="value-display">'+bfmt(mTips)+'</span></div>'
+        +'<div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash</span><span class="value-display" style="font-weight:700;color:var(--accent);">'+bfmt(mTot)+'</span></div>'
+        +'<div class="input-row"><span class="input-label" style="color:var(--muted);">Card Tips (settled w/ card)</span><span class="value-display" style="color:var(--muted);">'+bfmt(mCard)+'</span></div>'
+        +'<div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.8rem;">'+entries.length+' day(s) recorded</span></div>'
+        +'</div>';
+      ms.style.display='block';
+    }
+  }catch(ex){console.error('monthSummary',ex);}
+  Object.entries(_salesCache).filter(function(kv){return kv[1]&&kv[1].date&&kv[1].date.startsWith(month);})
+    .sort(function(a,b){return b[1].date.localeCompare(a[1].date);})
+    .forEach(function(kv){
+      var o=document.createElement('option');
+      o.value=kv[0];
+      o.textContent=new Date(kv[1].date+'T00:00:00').toLocaleDateString('en-AE',{weekday:'short',day:'numeric',month:'short'});
+      sel.appendChild(o);
+    });
+}
 function loadBankingEntry(){
   var key=document.getElementById('b-date').value;hideBankSections();if(!key||!_salesCache)return;
   _bankEntry=_salesCache[key];if(!_bankEntry)return;
