@@ -33,20 +33,21 @@ function loadBankingDates(){
 async function loadBankingEntry(){
   const key=document.getElementById('b-date').value;hideBankSections();if(!key||!_salesCache)return;
   _bankEntry=_salesCache[key];if(!_bankEntry)return;
-  document.getElementById('b-ref-cash').textContent=bfmt(_bankEntry.totalCash);
+  document.getElementById('b-ref-retail-cash').textContent=bfmt(_bankEntry.retailCash);
+  document.getElementById('b-ref-fnb-cash').textContent=bfmt(_bankEntry.fnbCash);
   document.getElementById('b-ref-tips-cash').textContent=bfmt(_bankEntry.tipsCash);
+  document.getElementById('b-ref-cash').textContent=bfmt(_bankEntry.totalCash);
   document.getElementById('b-ref-tips-card').textContent=bfmt(_bankEntry.tipsCard);
-  document.getElementById('b-ref-tips-total').textContent=bfmt(_bankEntry.totalTips);
   document.getElementById('b-bank-date').value=new Date().toISOString().split('T')[0];
   DENOMS.forEach(d=>{const el=document.getElementById('dn-'+d);if(el)el.value=0;});
   calcDenomTotal();
-  ['b-cash-dep','b-tips-dep','b-tips-card-dep','b-ref-num'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['b-retail-dep','b-fnb-dep','b-tips-cash-dep2','b-ref-num'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('b-notes').value='';
   document.getElementById('b-cash-var').textContent='—';document.getElementById('b-tips-var').textContent='—';
   showBankSections();loadBankingHistory(key);
 }
-function hideBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-tips-section','b-ref-section','b-history-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
-function showBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-tips-section','b-ref-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
+function hideBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section','b-history-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
+function showBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
 function calcDenomTotal(){
   let total=0;
   DENOMS.forEach(d=>{const qty=parseFloat(document.getElementById('dn-'+d)?.value)||0;const sub=qty*d;total+=sub;const s=document.getElementById('ds-'+d);if(s)s.textContent=sub%1===0?sub.toLocaleString():sub.toFixed(2);});
@@ -54,24 +55,31 @@ function calcDenomTotal(){
 }
 function calcBankingVariances(){
   if(!_bankEntry)return;
-  const sc=parseFloat(_bankEntry.totalCash)||0;const st=parseFloat(_bankEntry.totalTips)||0;
-  const cd=parseFloat(document.getElementById('b-cash-dep').value)||0;
-  const td=( parseFloat(document.getElementById('b-tips-dep').value)||0)+(parseFloat(document.getElementById('b-tips-card-dep').value)||0);
-  const cv=cd-sc;const tv=td-st;
-  const cve=document.getElementById('b-cash-var');cve.textContent=bfmt(cv);cve.style.color=cv===0?'var(--success)':cv>0?'var(--accent2)':'var(--danger)';
-  const tve=document.getElementById('b-tips-var');tve.textContent=bfmt(tv);tve.style.color=tv===0?'var(--success)':tv>0?'var(--accent2)':'var(--danger)';
+  const retailS=parseFloat(_bankEntry.retailCash)||0;
+  const fnbS=parseFloat(_bankEntry.fnbCash)||0;
+  const tipsCashS=parseFloat(_bankEntry.tipsCash)||0;
+  const totalS=parseFloat(_bankEntry.totalCash)||0;
+  const rDep=parseFloat(document.getElementById('b-retail-dep').value)||0;
+  const fDep=parseFloat(document.getElementById('b-fnb-dep').value)||0;
+  const tDep=parseFloat(document.getElementById('b-tips-cash-dep2').value)||0;
+  const totDep=rDep+fDep+tDep;
+  const sv=(id,val)=>{const el=document.getElementById(id);if(!el)return;el.textContent=bfmt(val);el.style.color=val===0?'var(--success)':val>0?'var(--accent2)':'var(--danger)';};
+  sv('b-retail-var',rDep-retailS);sv('b-fnb-var',fDep-fnbS);sv('b-tips-cash-var',tDep-tipsCashS);
+  const td2=document.getElementById('b-cash-dep-total');if(td2)td2.textContent=bfmt(totDep);
+  sv('b-cash-var',totDep-totalS);
 }
 async function saveBankingRecord(){
   if(!_bankEntry)return alert('Please select a sales date first.');
   const dateKey=document.getElementById('b-date').value;
   const bankDate=document.getElementById('b-bank-date').value;
   if(!bankDate)return alert('Please enter the date banked.');
-  const cashDep=parseFloat(document.getElementById('b-cash-dep').value)||0;
-  const tipsCashDep=parseFloat(document.getElementById('b-tips-dep').value)||0;
-  const tipsCardDep=parseFloat(document.getElementById('b-tips-card-dep').value)||0;
+  const rDep=parseFloat(document.getElementById('b-retail-dep').value)||0;
+  const fDep=parseFloat(document.getElementById('b-fnb-dep').value)||0;
+  const tipsCashDep=parseFloat(document.getElementById('b-tips-cash-dep2').value)||0;
+  const cashDep=rDep+fDep+tipsCashDep;
   const denomCounts={};DENOMS.forEach(d=>{denomCounts['d'+String(d).replace('.','_')]=parseFloat(document.getElementById('dn-'+d)?.value)||0;});
   const denomTotal=Math.round(DENOMS.reduce((s,d)=>s+(denomCounts['d'+String(d).replace('.','_')]*d),0)*100)/100;
-  const record={salesDateKey:dateKey,salesDate:_bankEntry.date,bankDate,refNum:document.getElementById('b-ref-num').value.trim(),notes:document.getElementById('b-notes').value.trim(),salesCash:_bankEntry.totalCash||0,salesTipsCash:_bankEntry.tipsCash||0,salesTipsCard:_bankEntry.tipsCard||0,salesTotalTips:_bankEntry.totalTips||0,denomCounts,denomTotal,cashDeposited:cashDep,tipsCashDeposited:tipsCashDep,tipsCardDeposited:tipsCardDep,cashVariance:Math.round((cashDep-(_bankEntry.totalCash||0))*100)/100,tipsVariance:Math.round(((tipsCashDep+tipsCardDep)-(_bankEntry.totalTips||0))*100)/100,savedAt:new Date().toISOString()};
+  const record={salesDateKey:dateKey,salesDate:_bankEntry.date,bankDate,refNum:document.getElementById('b-ref-num').value.trim(),notes:document.getElementById('b-notes').value.trim(),salesCash:_bankEntry.totalCash||0,salesTipsCash:_bankEntry.tipsCash||0,salesTipsCard:_bankEntry.tipsCard||0,salesTotalTips:_bankEntry.totalTips||0,denomCounts,denomTotal,retailDeposited:rDep,fnbDeposited:fDep,tipsCashDeposited:tipsCashDep,cashDeposited:cashDep,retailVariance:Math.round((rDep-(parseFloat(_bankEntry.retailCash)||0))*100)/100,fnbVariance:Math.round((fDep-(parseFloat(_bankEntry.fnbCash)||0))*100)/100,tipsCashVariance:Math.round((tipsCashDep-(parseFloat(_bankEntry.tipsCash)||0))*100)/100,cashVariance:Math.round((cashDep-(_bankEntry.totalCash||0))*100)/100,cardTipsNote:_bankEntry.tipsCard||0,savedAt:new Date().toISOString()};
   try{const r=await fetch(DB_BANKING+'.json',{method:'POST',body:JSON.stringify(record)});if(r.ok){alert('Banking record saved!');loadBankingHistory(dateKey);}else{alert('Error saving.');}}catch(e){alert('Error: '+e.message);}
 }
 async function loadBankingHistory(salesDateKey){
@@ -79,7 +87,7 @@ async function loadBankingHistory(salesDateKey){
   const records=Object.entries(data).filter(([,v])=>v.salesDateKey===salesDateKey).sort((a,b)=>b[1].savedAt.localeCompare(a[1].savedAt));
   const c=document.getElementById('b-history-list');
   if(!records.length){c.innerHTML='<p style="color:var(--muted);font-size:0.85rem;">No records for this date yet.</p>';}
-  else{c.innerHTML=records.map(([k,v])=>`<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong style="color:var(--text);">Banked: ${v.bankDate}</strong><span style="color:var(--muted);">${v.refNum||'No ref'}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--muted);"><span>Cash deposited:</span><span style="color:var(--text);text-align:right;">${bfmt(v.cashDeposited)}</span><span>Cash variance:</span><span style="color:${v.cashVariance===0?'var(--success)':v.cashVariance>0?'var(--accent2)':'var(--danger)'};text-align:right;">${bfmt(v.cashVariance)}</span><span>Tips deposited:</span><span style="color:var(--text);text-align:right;">${bfmt((v.tipsCashDeposited||0)+(v.tipsCardDeposited||0))}</span><span>Tips variance:</span><span style="color:${v.tipsVariance===0?'var(--success)':v.tipsVariance>0?'var(--accent2)':'var(--danger)'};text-align:right;">${bfmt(v.tipsVariance)}</span></div>${v.notes?'<p style="margin:8px 0 0;color:var(--muted);font-style:italic;">'+v.notes+'</p>':''}</div>`).join('');}
+  else{c.innerHTML=records.map(([k,v])=>`<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong style="color:var(--text);">Banked: ${v.bankDate}</strong><span style="color:var(--muted);">${v.refNum||'No ref'}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--muted);"><span>Retail dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.retailDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Retail var:</span><span style="color:${(v.retailVariance||0)===0?'var(--success)':(v.retailVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.retailVariance)}</span><span>Coffee dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.fnbDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Coffee var:</span><span style="color:${(v.fnbVariance||0)===0?'var(--success)':(v.fnbVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.fnbVariance)}</span><span>Cash tips dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.tipsCashDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Tips var:</span><span style="color:${(v.tipsCashVariance||0)===0?'var(--success)':(v.tipsCashVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.tipsCashVariance)}</span><span style="font-weight:600;">Total dep:</span><span style="color:var(--accent);font-weight:600;text-align:right;">${bfmt(v.cashDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Overall var:</span><span style="color:${(v.cashVariance||0)===0?'var(--success)':(v.cashVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.cashVariance)}</span><span style="color:var(--muted);">Card tips (settled):</span><span style="color:var(--muted);text-align:right;">${bfmt(v.cardTipsNote)}</span></div>${v.notes?'<p style="margin:8px 0 0;color:var(--muted);font-style:italic;">'+v.notes+'</p>':''}</div>`).join('');}
   document.getElementById('b-history-section').style.display='';}catch(e){console.error(e);}
 }
 </script>
@@ -1006,10 +1014,11 @@ startSync();
     <div class="section" id="b-sales-ref-section" style="display:none;">
       <div class="section-title">📊 Sales Reference</div>
       <div class="row-group">
-        <div class="input-row"><span class="input-label">Total Cash (Sales)</span><span id="b-ref-cash" class="value-display">—</span></div>
+        <div class="input-row"><span class="input-label">Retail Cash</span><span id="b-ref-retail-cash" class="value-display">—</span></div>
+        <div class="input-row"><span class="input-label">Coffee / F&amp;B Cash</span><span id="b-ref-fnb-cash" class="value-display">—</span></div>
         <div class="input-row"><span class="input-label">Cash Tips</span><span id="b-ref-tips-cash" class="value-display">—</span></div>
-        <div class="input-row"><span class="input-label">Card Tips</span><span id="b-ref-tips-card" class="value-display">—</span></div>
-        <div class="input-row"><span class="input-label">Total Tips</span><span id="b-ref-tips-total" class="value-display">—</span></div>
+        <div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash</span><span id="b-ref-cash" class="value-display" style="font-weight:600;">—</span></div>
+        <div class="input-row" style="margin-top:4px;"><span class="input-label" style="color:var(--muted);">Card Tips <span style="font-size:0.75rem;">(settled with card sales)</span></span><span id="b-ref-tips-card" class="value-display" style="color:var(--muted);">—</span></div>
       </div>
     </div>
     <div class="section" id="b-denom-section" style="display:none;">
@@ -1034,18 +1043,17 @@ startSync();
     <div class="section" id="b-cash-section" style="display:none;">
       <div class="section-title">🏦 Cash Banking</div>
       <div class="row-group">
-        <div class="input-row"><label class="input-label" for="b-cash-dep">Amount Deposited (AED)</label><input type="number" id="b-cash-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><span class="input-label">Cash Variance</span><span id="b-cash-var" style="font-weight:600;font-size:0.95rem;">—</span></div>
+        <div class="input-row"><label class="input-label" for="b-retail-dep">Retail Cash Deposited</label><input type="number" id="b-retail-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
+        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Retail Variance</span><span id="b-retail-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
+        <div class="input-row" style="margin-top:6px;"><label class="input-label" for="b-fnb-dep">Coffee / F&amp;B Cash Deposited</label><input type="number" id="b-fnb-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
+        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Coffee Variance</span><span id="b-fnb-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
+        <div class="input-row" style="margin-top:6px;"><label class="input-label" for="b-tips-cash-dep2">Cash Tips Deposited</label><input type="number" id="b-tips-cash-dep2" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
+        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Cash Tips Variance</span><span id="b-tips-cash-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
+        <div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash Deposited</span><span id="b-cash-dep-total" style="font-weight:700;font-size:1rem;color:var(--accent);">—</span></div>
+        <div class="input-row"><span class="input-label" style="font-weight:600;">Overall Cash Variance</span><span id="b-cash-var" style="font-weight:700;font-size:1rem;">—</span></div>
       </div>
     </div>
-    <div class="section" id="b-tips-section" style="display:none;">
-      <div class="section-title">💰 Tips Banking</div>
-      <div class="row-group">
-        <div class="input-row"><label class="input-label" for="b-tips-dep">Cash Tips Banked (AED)</label><input type="number" id="b-tips-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><label class="input-label" for="b-tips-card-dep">Card Tips Banked (AED)</label><input type="number" id="b-tips-card-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><span class="input-label">Tips Variance</span><span id="b-tips-var" style="font-weight:600;font-size:0.95rem;">—</span></div>
-      </div>
-    </div>
+    
     <div class="section" id="b-ref-section" style="display:none;">
       <div class="section-title">📋 Banking Details</div>
       <div class="row-group">
