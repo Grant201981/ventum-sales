@@ -5,91 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Daily Sales Log</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous">
-// ═══ BANKING TAB ═══
-const BANKING_PIN='3240';
-const DB_BANKING='https://ventum-sales-default-rtdb.firebaseio.com/banking';
-const DB_SALES_B='https://ventum-sales-default-rtdb.firebaseio.com/sales';
-let _bankUnlocked=false,_salesCache=null,_bankEntry=null;
-const DENOMS=[1000,500,200,100,50,20,10,5,1,0.5,0.25];
-const bfmt=n=>isNaN(n)||n===null?'—':'AED '+Number(n).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});
-function unlockBanking(){
-  const pin=document.getElementById('banking-pin').value;
-  if(pin===BANKING_PIN){_bankUnlocked=true;document.getElementById('banking-lock').style.display='none';document.getElementById('banking-content').style.display='block';loadBankingMonths();}
-  else{document.getElementById('banking-pin-err').style.display='block';document.getElementById('banking-pin').value='';}
-}
-async function loadBankingMonths(){
-  try{const r=await fetch(DB_SALES_B+'.json');const d=await r.json();_salesCache=d||{};
-  const months=new Set();Object.values(_salesCache).forEach(e=>{if(e.date)months.add(e.date.substring(0,7));});
-  const sel=document.getElementById('b-month');sel.innerHTML='<option value="">Select month…</option>';
-  [...months].sort().reverse().forEach(m=>{const o=document.createElement('option');o.value=m;const[y,mo]=m.split('-');o.textContent=new Date(y,mo-1).toLocaleString('en-AE',{month:'long',year:'numeric'});sel.appendChild(o);});
-  }catch(e){console.error(e);}
-}
-function loadBankingDates(){
-  const month=document.getElementById('b-month').value;const sel=document.getElementById('b-date');
-  sel.innerHTML='<option value="">Select date…</option>';hideBankSections();
-  if(!month||!_salesCache)return;
-  Object.entries(_salesCache).filter(([,e])=>e.date&&e.date.startsWith(month)).sort((a,b)=>b[1].date.localeCompare(a[1].date)).forEach(([k,e])=>{const o=document.createElement('option');o.value=k;o.textContent=new Date(e.date+'T00:00:00').toLocaleDateString('en-AE',{weekday:'short',day:'numeric',month:'short'});sel.appendChild(o);});
-}
-async function loadBankingEntry(){
-  const key=document.getElementById('b-date').value;hideBankSections();if(!key||!_salesCache)return;
-  _bankEntry=_salesCache[key];if(!_bankEntry)return;
-  document.getElementById('b-ref-retail-cash').textContent=bfmt(_bankEntry.retailCash);
-  document.getElementById('b-ref-fnb-cash').textContent=bfmt(_bankEntry.fnbCash);
-  document.getElementById('b-ref-tips-cash').textContent=bfmt(_bankEntry.tipsCash);
-  document.getElementById('b-ref-cash').textContent=bfmt(_bankEntry.totalCash);
-  document.getElementById('b-ref-tips-card').textContent=bfmt(_bankEntry.tipsCard);
-  document.getElementById('b-bank-date').value=new Date().toISOString().split('T')[0];
-  DENOMS.forEach(d=>{const el=document.getElementById('dn-'+d);if(el)el.value=0;});
-  calcDenomTotal();
-  ['b-retail-dep','b-fnb-dep','b-tips-cash-dep2','b-ref-num'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('b-notes').value='';
-  document.getElementById('b-cash-var').textContent='—';document.getElementById('b-tips-var').textContent='—';
-  showBankSections();loadBankingHistory(key);
-}
-function hideBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section','b-history-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
-function showBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
-function calcDenomTotal(){
-  let total=0;
-  DENOMS.forEach(d=>{const qty=parseFloat(document.getElementById('dn-'+d)?.value)||0;const sub=qty*d;total+=sub;const s=document.getElementById('ds-'+d);if(s)s.textContent=sub%1===0?sub.toLocaleString():sub.toFixed(2);});
-  document.getElementById('b-denom-total').textContent=bfmt(total);calcBankingVariances();
-}
-function calcBankingVariances(){
-  if(!_bankEntry)return;
-  const retailS=parseFloat(_bankEntry.retailCash)||0;
-  const fnbS=parseFloat(_bankEntry.fnbCash)||0;
-  const tipsCashS=parseFloat(_bankEntry.tipsCash)||0;
-  const totalS=parseFloat(_bankEntry.totalCash)||0;
-  const rDep=parseFloat(document.getElementById('b-retail-dep').value)||0;
-  const fDep=parseFloat(document.getElementById('b-fnb-dep').value)||0;
-  const tDep=parseFloat(document.getElementById('b-tips-cash-dep2').value)||0;
-  const totDep=rDep+fDep+tDep;
-  const sv=(id,val)=>{const el=document.getElementById(id);if(!el)return;el.textContent=bfmt(val);el.style.color=val===0?'var(--success)':val>0?'var(--accent2)':'var(--danger)';};
-  sv('b-retail-var',rDep-retailS);sv('b-fnb-var',fDep-fnbS);sv('b-tips-cash-var',tDep-tipsCashS);
-  const td2=document.getElementById('b-cash-dep-total');if(td2)td2.textContent=bfmt(totDep);
-  sv('b-cash-var',totDep-totalS);
-}
-async function saveBankingRecord(){
-  if(!_bankEntry)return alert('Please select a sales date first.');
-  const dateKey=document.getElementById('b-date').value;
-  const bankDate=document.getElementById('b-bank-date').value;
-  if(!bankDate)return alert('Please enter the date banked.');
-  const rDep=parseFloat(document.getElementById('b-retail-dep').value)||0;
-  const fDep=parseFloat(document.getElementById('b-fnb-dep').value)||0;
-  const tipsCashDep=parseFloat(document.getElementById('b-tips-cash-dep2').value)||0;
-  const cashDep=rDep+fDep+tipsCashDep;
-  const denomCounts={};DENOMS.forEach(d=>{denomCounts['d'+String(d).replace('.','_')]=parseFloat(document.getElementById('dn-'+d)?.value)||0;});
-  const denomTotal=Math.round(DENOMS.reduce((s,d)=>s+(denomCounts['d'+String(d).replace('.','_')]*d),0)*100)/100;
-  const record={salesDateKey:dateKey,salesDate:_bankEntry.date,bankDate,refNum:document.getElementById('b-ref-num').value.trim(),notes:document.getElementById('b-notes').value.trim(),salesCash:_bankEntry.totalCash||0,salesTipsCash:_bankEntry.tipsCash||0,salesTipsCard:_bankEntry.tipsCard||0,salesTotalTips:_bankEntry.totalTips||0,denomCounts,denomTotal,retailDeposited:rDep,fnbDeposited:fDep,tipsCashDeposited:tipsCashDep,cashDeposited:cashDep,retailVariance:Math.round((rDep-(parseFloat(_bankEntry.retailCash)||0))*100)/100,fnbVariance:Math.round((fDep-(parseFloat(_bankEntry.fnbCash)||0))*100)/100,tipsCashVariance:Math.round((tipsCashDep-(parseFloat(_bankEntry.tipsCash)||0))*100)/100,cashVariance:Math.round((cashDep-(_bankEntry.totalCash||0))*100)/100,cardTipsNote:_bankEntry.tipsCard||0,savedAt:new Date().toISOString()};
-  try{const r=await fetch(DB_BANKING+'.json',{method:'POST',body:JSON.stringify(record)});if(r.ok){alert('Banking record saved!');loadBankingHistory(dateKey);}else{alert('Error saving.');}}catch(e){alert('Error: '+e.message);}
-}
-async function loadBankingHistory(salesDateKey){
-  try{const r=await fetch(DB_BANKING+'.json');const data=await r.json();if(!data)return;
-  const records=Object.entries(data).filter(([,v])=>v.salesDateKey===salesDateKey).sort((a,b)=>b[1].savedAt.localeCompare(a[1].savedAt));
-  const c=document.getElementById('b-history-list');
-  if(!records.length){c.innerHTML='<p style="color:var(--muted);font-size:0.85rem;">No records for this date yet.</p>';}
-  else{c.innerHTML=records.map(([k,v])=>`<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong style="color:var(--text);">Banked: ${v.bankDate}</strong><span style="color:var(--muted);">${v.refNum||'No ref'}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--muted);"><span>Retail dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.retailDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Retail var:</span><span style="color:${(v.retailVariance||0)===0?'var(--success)':(v.retailVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.retailVariance)}</span><span>Coffee dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.fnbDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Coffee var:</span><span style="color:${(v.fnbVariance||0)===0?'var(--success)':(v.fnbVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.fnbVariance)}</span><span>Cash tips dep:</span><span style="color:var(--text);text-align:right;">${bfmt(v.tipsCashDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Tips var:</span><span style="color:${(v.tipsCashVariance||0)===0?'var(--success)':(v.tipsCashVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.tipsCashVariance)}</span><span style="font-weight:600;">Total dep:</span><span style="color:var(--accent);font-weight:600;text-align:right;">${bfmt(v.cashDeposited)}</span><span style="color:var(--muted);font-size:0.8rem;">Overall var:</span><span style="color:${(v.cashVariance||0)===0?'var(--success)':(v.cashVariance||0)>0?'var(--accent2)':'var(--danger)'};text-align:right;font-size:0.8rem;">${bfmt(v.cashVariance)}</span><span style="color:var(--muted);">Card tips (settled):</span><span style="color:var(--muted);text-align:right;">${bfmt(v.cardTipsNote)}</span></div>${v.notes?'<p style="margin:8px 0 0;color:var(--muted);font-style:italic;">'+v.notes+'</p>':''}</div>`).join('');}
-  document.getElementById('b-history-section').style.display='';}catch(e){console.error(e);}
-}
 </script>
 <style>
   :root {
@@ -449,84 +364,22 @@ async function loadBankingHistory(salesDateKey){
 <div id="tab-history" class="tab-content">
   <div id="history-container" style="padding-bottom:24px;"></div>
 </div>
+<!-- ═══ BANKING TAB ═══ -->
+<div id="tab-banking" class="tab-content">
+  <div id="banking-lock" style="padding:40px 16px;text-align:center;"><div class="card" style="max-width:320px;margin:0 auto;padding:32px 24px;"><div style="font-size:2rem;margin-bottom:8px;">🏦</div><h3 style="color:var(--text);margin:0 0 6px;">Manager Access</h3><p style="color:var(--muted);font-size:0.85rem;margin:0 0 20px;">Cash Banking Log</p><input type="password" id="banking-pin" placeholder="Enter PIN" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.1rem;text-align:center;margin-bottom:10px;" onkeydown="if(event.key==='Enter')unlockBanking()"/><button onclick="unlockBanking()" class="save-btn" style="width:100%;">Unlock</button><p id="banking-pin-err" style="color:var(--danger);margin:10px 0 0;font-size:0.85rem;display:none;">Incorrect PIN.</p></div></div>
+  <div id="banking-content" style="display:none;padding-bottom:40px;">
+    <div class="date-bar" style="gap:8px;flex-wrap:wrap;"><div style="flex:1;min-width:130px;"><label style="color:var(--muted);font-size:0.75rem;display:block;margin-bottom:4px;">Month</label><select id="b-month" onchange="loadBankingDates()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"><option value="">Select month...</option></select></div><div style="flex:1;min-width:130px;"><label style="color:var(--muted);font-size:0.75rem;display:block;margin-bottom:4px;">Sales Date</label><select id="b-date" onchange="loadBankingEntry()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"><option value="">Select date...</option></select></div></div>
+    <div class="section" id="b-sales-ref-section" style="display:none;"><div class="section-title">Sales Reference</div><div class="row-group"><div class="input-row"><span class="input-label">Retail Cash</span><span id="b-ref-retail-cash" class="value-display">-</span></div><div class="input-row"><span class="input-label">Coffee / F&amp;B Cash</span><span id="b-ref-fnb-cash" class="value-display">-</span></div><div class="input-row"><span class="input-label">Cash Tips</span><span id="b-ref-tips-cash" class="value-display">-</span></div><div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash</span><span id="b-ref-cash" class="value-display" style="font-weight:600;">-</span></div><div class="input-row"><span class="input-label" style="color:var(--muted);">Card Tips (settled with card)</span><span id="b-ref-tips-card" class="value-display" style="color:var(--muted);">-</span></div></div></div>
+    <div class="section" id="b-denom-section" style="display:none;"><div class="section-title">Denomination Count</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;"><div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">NOTES</div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 1000</span><input type="number" id="dn-1000" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1000">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 500</span><input type="number" id="dn-500" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-500">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 200</span><input type="number" id="dn-200" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-200">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 100</span><input type="number" id="dn-100" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-100">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 50</span><input type="number" id="dn-50" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-50">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 20</span><input type="number" id="dn-20" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-20">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 10</span><input type="number" id="dn-10" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-10">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 5</span><input type="number" id="dn-5" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-5">0</span></span></div><div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">COINS</div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 1</span><input type="number" id="dn-1" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1">0.00</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">50 Fils</span><input type="number" id="dn-05" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-05">0.00</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">25 Fils</span><input type="number" id="dn-025" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-025">0.00</span></span></div></div><div style="background:var(--card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-weight:600;">Total Counted</span><span id="b-denom-total" style="color:var(--accent);font-size:1.1rem;font-weight:700;">AED 0.00</span></div></div>
+    <div class="section" id="b-cash-section" style="display:none;"><div class="section-title">Cash Banking</div><div class="row-group"><div class="input-row"><label class="input-label">Retail Cash Deposited</label><input type="number" id="b-retail-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div><div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Retail Variance</span><span id="b-retail-var" style="font-weight:600;">-</span></div><div class="input-row" style="margin-top:6px;"><label class="input-label">Coffee / F&amp;B Deposited</label><input type="number" id="b-fnb-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div><div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Coffee Variance</span><span id="b-fnb-var" style="font-weight:600;">-</span></div><div class="input-row" style="margin-top:6px;"><label class="input-label">Cash Tips Deposited</label><input type="number" id="b-tips-cash-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div><div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Cash Tips Variance</span><span id="b-tips-cash-var" style="font-weight:600;">-</span></div><div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Deposited</span><span id="b-cash-dep-total" style="font-weight:700;color:var(--accent);">-</span></div><div class="input-row"><span class="input-label" style="font-weight:600;">Overall Variance</span><span id="b-cash-var" style="font-weight:700;">-</span></div></div></div>
+    <div class="section" id="b-ref-section" style="display:none;"><div class="section-title">Banking Details</div><div class="row-group"><div class="input-row"><label class="input-label">Date Banked</label><input type="date" id="b-bank-date" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"/></div><div class="input-row"><label class="input-label">Reference Number</label><input type="text" id="b-ref-num" placeholder="e.g. TXN-00123" style="width:160px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"/></div><div style="margin-top:8px;"><label class="input-label" style="display:block;margin-bottom:6px;">Notes</label><textarea id="b-notes" rows="3" placeholder="Any discrepancies or notes..." style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;resize:vertical;"></textarea></div></div><button onclick="saveBankingRecord()" class="save-btn" style="width:100%;margin-top:12px;">Save Banking Record</button></div>
+    <div class="section" id="b-history-section" style="display:none;margin-top:8px;"><div class="section-title">Previous Records</div><div id="b-history-list"></div></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
-<!-- ═══ BANKING TAB ═══ -->
-<div id="tab-banking" class="tab-content">
-  <div id="banking-lock" style="padding:40px 16px;text-align:center;">
-    <div class="card" style="max-width:320px;margin:0 auto;padding:32px 24px;">
-      <div style="font-size:2rem;margin-bottom:8px;">🏦</div>
-      <h3 style="color:var(--text);margin:0 0 6px;">Manager Access</h3>
-      <p style="color:var(--muted);font-size:0.85rem;margin:0 0 20px;">Cash Banking Log</p>
-      <input type="password" id="banking-pin" placeholder="Enter PIN" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.1rem;text-align:center;margin-bottom:10px;" onkeydown="if(event.key==='Enter')unlockBanking()"/>
-      <button onclick="unlockBanking()" class="save-btn" style="width:100%;">Unlock</button>
-      <p id="banking-pin-err" style="color:var(--danger);margin:10px 0 0;font-size:0.85rem;display:none;">Incorrect PIN.</p>
-    </div>
-  </div>
-  <div id="banking-content" style="display:none;padding-bottom:40px;">
-    <div class="date-bar" style="gap:8px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:130px;"><label style="color:var(--muted);font-size:0.75rem;display:block;margin-bottom:4px;">Month</label><select id="b-month" onchange="loadBankingDates()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"><option value="">Select month…</option></select></div>
-      <div style="flex:1;min-width:130px;"><label style="color:var(--muted);font-size:0.75rem;display:block;margin-bottom:4px;">Sales Date</label><select id="b-date" onchange="loadBankingEntry()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"><option value="">Select date…</option></select></div>
-    </div>
-    <div class="section" id="b-sales-ref-section" style="display:none;">
-      <div class="section-title">📊 Sales Reference</div>
-      <div class="row-group">
-        <div class="input-row"><span class="input-label">Retail Cash</span><span id="b-ref-retail-cash" class="value-display">—</span></div>
-        <div class="input-row"><span class="input-label">Coffee / F&amp;B Cash</span><span id="b-ref-fnb-cash" class="value-display">—</span></div>
-        <div class="input-row"><span class="input-label">Cash Tips</span><span id="b-ref-tips-cash" class="value-display">—</span></div>
-        <div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash</span><span id="b-ref-cash" class="value-display" style="font-weight:600;">—</span></div>
-        <div class="input-row" style="margin-top:4px;"><span class="input-label" style="color:var(--muted);">Card Tips <span style="font-size:0.75rem;">(settled with card sales)</span></span><span id="b-ref-tips-card" class="value-display" style="color:var(--muted);">—</span></div>
-      </div>
-    </div>
-    <div class="section" id="b-denom-section" style="display:none;">
-      <div class="section-title">💵 Denomination Count</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
-        <div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">NOTES</div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 1000</span><input type="number" id="dn-1000" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1000" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 500</span><input type="number" id="dn-500" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-500" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 200</span><input type="number" id="dn-200" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-200" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 100</span><input type="number" id="dn-100" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-100" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 50</span><input type="number" id="dn-50" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-50" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 20</span><input type="number" id="dn-20" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-20" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 10</span><input type="number" id="dn-10" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-10" style="color:var(--text);">0</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 5</span><input type="number" id="dn-5" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-5" style="color:var(--text);">0</span></span></div>
-        <div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">COINS</div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">AED 1</span><input type="number" id="dn-1" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1" style="color:var(--text);">0.00</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">50 Fils</span><input type="number" id="dn-0.5" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-0.5" style="color:var(--text);">0.00</span></span></div>
-        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;width:52px;">25 Fils</span><input type="number" id="dn-0.25" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-0.25" style="color:var(--text);">0.00</span></span></div>
-      </div>
-      <div style="background:var(--card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-weight:600;">Total Counted</span><span id="b-denom-total" style="color:var(--accent);font-size:1.1rem;font-weight:700;">AED 0.00</span></div>
-    </div>
-    <div class="section" id="b-cash-section" style="display:none;">
-      <div class="section-title">🏦 Cash Banking</div>
-      <div class="row-group">
-        <div class="input-row"><label class="input-label" for="b-retail-dep">Retail Cash Deposited</label><input type="number" id="b-retail-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Retail Variance</span><span id="b-retail-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
-        <div class="input-row" style="margin-top:6px;"><label class="input-label" for="b-fnb-dep">Coffee / F&amp;B Cash Deposited</label><input type="number" id="b-fnb-dep" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Coffee Variance</span><span id="b-fnb-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
-        <div class="input-row" style="margin-top:6px;"><label class="input-label" for="b-tips-cash-dep2">Cash Tips Deposited</label><input type="number" id="b-tips-cash-dep2" min="0" step="0.01" inputmode="decimal" oninput="calcBankingVariances()" style="width:120px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);text-align:right;font-size:0.95rem;"/></div>
-        <div class="input-row"><span class="input-label" style="color:var(--muted);font-size:0.85rem;">Cash Tips Variance</span><span id="b-tips-cash-var" style="font-weight:600;font-size:0.9rem;">—</span></div>
-        <div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash Deposited</span><span id="b-cash-dep-total" style="font-weight:700;font-size:1rem;color:var(--accent);">—</span></div>
-        <div class="input-row"><span class="input-label" style="font-weight:600;">Overall Cash Variance</span><span id="b-cash-var" style="font-weight:700;font-size:1rem;">—</span></div>
-      </div>
-    </div>
-    
-    <div class="section" id="b-ref-section" style="display:none;">
-      <div class="section-title">📋 Banking Details</div>
-      <div class="row-group">
-        <div class="input-row"><label class="input-label" for="b-bank-date">Date Banked</label><input type="date" id="b-bank-date" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"/></div>
-        <div class="input-row"><label class="input-label" for="b-ref-num">Reference Number</label><input type="text" id="b-ref-num" placeholder="e.g. TXN-00123" style="width:160px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;"/></div>
-        <div style="margin-top:8px;"><label class="input-label" style="display:block;margin-bottom:6px;">Notes</label><textarea id="b-notes" rows="3" placeholder="Any discrepancies or notes…" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.9rem;resize:vertical;"></textarea></div>
-      </div>
-      <button onclick="saveBankingRecord()" class="save-btn" style="width:100%;margin-top:12px;">💾 Save Banking Record</button>
-    </div>
-    <div class="section" id="b-history-section" style="display:none;margin-top:8px;">
-      <div class="section-title">📜 Previous Records</div>
-      <div id="b-history-list"></div>
-    </div>
-  </div>
-</div>
+
 
 <script>
 const DB = 'https://ventum-sales-default-rtdb.firebaseio.com/sales';
@@ -1067,6 +920,84 @@ function exportCSV() {
 
 // \u2500\u2500\u2500 START
 startSync();
+
+// ═══ BANKING TAB ═══
+var BANKING_PIN='3240';
+var DB_BANKING='https://ventum-sales-default-rtdb.firebaseio.com/banking';
+var DB_SALES_B='https://ventum-sales-default-rtdb.firebaseio.com/sales';
+var _bankUnlocked=false,_salesCache=null,_bankEntry=null;
+var DENOM_IDS=['dn-1000','dn-500','dn-200','dn-100','dn-50','dn-20','dn-10','dn-5','dn-1','dn-05','dn-025'];
+var DENOM_VALS=[1000,500,200,100,50,20,10,5,1,0.5,0.25];
+function bfmt(n){return(isNaN(n)||n===null||n===undefined)?'-':'AED '+Number(n).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function unlockBanking(){
+  var pin=document.getElementById('banking-pin').value;
+  if(pin==='3240'){_bankUnlocked=true;document.getElementById('banking-lock').style.display='none';document.getElementById('banking-content').style.display='block';loadBankingMonths();
+  }else{document.getElementById('banking-pin-err').style.display='block';document.getElementById('banking-pin').value='';}
+}
+async function loadBankingMonths(){
+  try{
+    var r=await fetch(DB_SALES_B+'.json');var d=await r.json();_salesCache=d||{};
+    var months=new Set();Object.values(_salesCache).forEach(function(e){if(e.date)months.add(e.date.substring(0,7));});
+    var sel=document.getElementById('b-month');sel.innerHTML='<option value="">Select month...</option>';
+    Array.from(months).sort().reverse().forEach(function(mo){var o=document.createElement('option');o.value=mo;var p=mo.split('-');o.textContent=new Date(p[0],p[1]-1).toLocaleString('en-AE',{month:'long',year:'numeric'});sel.appendChild(o);});
+  }catch(e){console.error(e);}
+}
+function loadBankingDates(){
+  var month=document.getElementById('b-month').value;var sel=document.getElementById('b-date');sel.innerHTML='<option value="">Select date...</option>';hideBankSections();
+  if(!month||!_salesCache)return;
+  Object.entries(_salesCache).filter(function(kv){return kv[1].date&&kv[1].date.startsWith(month);}).sort(function(a,b){return b[1].date.localeCompare(a[1].date);}).forEach(function(kv){var o=document.createElement('option');o.value=kv[0];o.textContent=new Date(kv[1].date+'T00:00:00').toLocaleDateString('en-AE',{weekday:'short',day:'numeric',month:'short'});sel.appendChild(o);});
+}
+function loadBankingEntry(){
+  var key=document.getElementById('b-date').value;hideBankSections();if(!key||!_salesCache)return;
+  _bankEntry=_salesCache[key];if(!_bankEntry)return;
+  document.getElementById('b-ref-retail-cash').textContent=bfmt(_bankEntry.retailCash);
+  document.getElementById('b-ref-fnb-cash').textContent=bfmt(_bankEntry.fnbCash);
+  document.getElementById('b-ref-tips-cash').textContent=bfmt(_bankEntry.tipsCash);
+  document.getElementById('b-ref-cash').textContent=bfmt(_bankEntry.totalCash);
+  document.getElementById('b-ref-tips-card').textContent=bfmt(_bankEntry.tipsCard);
+  document.getElementById('b-bank-date').value=new Date().toISOString().split('T')[0];
+  ['b-retail-dep','b-fnb-dep','b-tips-cash-dep','b-ref-num'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('b-notes').value='';
+  DENOM_IDS.forEach(function(id){var el=document.getElementById(id);if(el)el.value=0;});
+  calcDenomTotal();document.getElementById('b-cash-var').textContent='-';
+  showBankSections();loadBankingHistory(key);
+}
+function hideBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section','b-history-section'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}
+function showBankSections(){['b-sales-ref-section','b-denom-section','b-cash-section','b-ref-section'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='';});}
+function calcDenomTotal(){
+  var total=0;DENOM_IDS.forEach(function(id,i){var qty=parseFloat(document.getElementById(id).value)||0;var sub=qty*DENOM_VALS[i];total+=sub;var s=document.getElementById('ds-'+id.replace('dn-',''));if(s)s.textContent=sub%1===0?sub.toLocaleString():sub.toFixed(2);});
+  document.getElementById('b-denom-total').textContent=bfmt(total);calcBankingVariances();
+}
+function calcBankingVariances(){
+  if(!_bankEntry)return;
+  var rS=parseFloat(_bankEntry.retailCash)||0,fS=parseFloat(_bankEntry.fnbCash)||0,tS=parseFloat(_bankEntry.tipsCash)||0,totS=parseFloat(_bankEntry.totalCash)||0;
+  var rD=parseFloat(document.getElementById('b-retail-dep').value)||0,fD=parseFloat(document.getElementById('b-fnb-dep').value)||0,tD=parseFloat(document.getElementById('b-tips-cash-dep').value)||0,totD=rD+fD+tD;
+  function sv(id,val){var el=document.getElementById(id);if(!el)return;el.textContent=bfmt(val);el.style.color=val===0?'var(--success)':val>0?'var(--accent2)':'var(--danger)';}
+  sv('b-retail-var',rD-rS);sv('b-fnb-var',fD-fS);sv('b-tips-cash-var',tD-tS);
+  var td2=document.getElementById('b-cash-dep-total');if(td2)td2.textContent=bfmt(totD);
+  sv('b-cash-var',totD-totS);
+}
+async function saveBankingRecord(){
+  if(!_bankEntry)return alert('Please select a sales date first.');
+  var bankDate=document.getElementById('b-bank-date').value;
+  if(!bankDate)return alert('Please enter the date banked.');
+  var rD=parseFloat(document.getElementById('b-retail-dep').value)||0,fD=parseFloat(document.getElementById('b-fnb-dep').value)||0,tD=parseFloat(document.getElementById('b-tips-cash-dep').value)||0,cashDep=rD+fD+tD;
+  var denomCounts={};DENOM_IDS.forEach(function(id,i){denomCounts['d'+id.replace('dn-','')]=parseFloat(document.getElementById(id).value)||0;});
+  var denomTotal=Math.round(DENOM_IDS.reduce(function(s,id,i){return s+(parseFloat(document.getElementById(id).value)||0)*DENOM_VALS[i];},0)*100)/100;
+  var record={salesDateKey:document.getElementById('b-date').value,salesDate:_bankEntry.date,bankDate:bankDate,refNum:document.getElementById('b-ref-num').value.trim(),notes:document.getElementById('b-notes').value.trim(),salesRetailCash:_bankEntry.retailCash||0,salesFnbCash:_bankEntry.fnbCash||0,salesTipsCash:_bankEntry.tipsCash||0,salesTotalCash:_bankEntry.totalCash||0,cardTipsNote:_bankEntry.tipsCard||0,denomCounts:denomCounts,denomTotal:denomTotal,retailDeposited:rD,fnbDeposited:fD,tipsCashDeposited:tD,cashDeposited:cashDep,retailVariance:Math.round((rD-(_bankEntry.retailCash||0))*100)/100,fnbVariance:Math.round((fD-(_bankEntry.fnbCash||0))*100)/100,tipsCashVariance:Math.round((tD-(_bankEntry.tipsCash||0))*100)/100,cashVariance:Math.round((cashDep-(_bankEntry.totalCash||0))*100)/100,savedAt:new Date().toISOString()};
+  try{var res=await fetch(DB_BANKING+'.json',{method:'POST',body:JSON.stringify(record)});if(res.ok){alert('Banking record saved!');loadBankingHistory(record.salesDateKey);}else{alert('Error saving.');}}
+  catch(e){alert('Error: '+e.message);}
+}
+async function loadBankingHistory(salesDateKey){
+  try{
+    var r=await fetch(DB_BANKING+'.json');var data=await r.json();if(!data)return;
+    var records=Object.entries(data).filter(function(kv){return kv[1].salesDateKey===salesDateKey;}).sort(function(a,b){return b[1].savedAt.localeCompare(a[1].savedAt);});
+    var c=document.getElementById('b-history-list');
+    if(!records.length){c.innerHTML='<p style="color:var(--muted);font-size:0.85rem;">No records for this date yet.</p>';}
+    else{c.innerHTML=records.map(function(kv){var v=kv[1];return '<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong>Banked: '+v.bankDate+'</strong><span style="color:var(--muted);">'+(v.refNum||'No ref')+'</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--muted);"><span>Retail dep:</span><span style="text-align:right;color:var(--text);">'+bfmt(v.retailDeposited)+'</span><span>Retail var:</span><span style="text-align:right;">'+bfmt(v.retailVariance)+'</span><span>Coffee dep:</span><span style="text-align:right;color:var(--text);">'+bfmt(v.fnbDeposited)+'</span><span>Coffee var:</span><span style="text-align:right;">'+bfmt(v.fnbVariance)+'</span><span>Tips dep:</span><span style="text-align:right;color:var(--text);">'+bfmt(v.tipsCashDeposited)+'</span><span>Total dep:</span><span style="text-align:right;color:var(--accent);font-weight:600;">'+bfmt(v.cashDeposited)+'</span><span>Overall var:</span><span style="text-align:right;">'+bfmt(v.cashVariance)+'</span><span>Card tips:</span><span style="text-align:right;">'+bfmt(v.cardTipsNote)+'</span></div>'+(v.notes?'<p style="margin:8px 0 0;font-style:italic;">'+v.notes+'</p>':'')+'</div>';}).join('');}
+    document.getElementById('b-history-section').style.display='';
+  }catch(e){console.error(e);}
+}
 </script>
 </body>
 </html>
