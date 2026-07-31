@@ -6,7 +6,7 @@
 <title>Daily Sales Log</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous">
 </script>
-<style>
+<script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js'></script><script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js'></script><script>firebase.initializeApp({apiKey:'AIzaSyANXG4-sGkrI-7YYD4g1sJ8PMtrLqkEkEM',authDomain:'ventum-sales.firebaseapp.com',databaseURL:'https://ventum-sales-default-rtdb.firebaseio.com',projectId:'ventum-sales',storageBucket:'ventum-sales.firebasestorage.app',messagingSenderId:'275323809742',appId:'1:275323809742:web:55ba3a3b63e1bc1e35059f'});window.currentUserEmail=null;window.__idToken=null;function withAuth(u){return window.__idToken?(u+(u.indexOf('?')>-1?'&':'?')+['a','u','t','h'].join('')+'='+window.__idToken):u;}firebase.auth().onAuthStateChanged(function(user){if(user){window.currentUserEmail=user.email;user.getIdToken().then(function(t){window.__idToken=t;});if(window.__ventumShowLogin)window.__ventumShowLogin(false);}else{window.currentUserEmail=null;window.__idToken=null;if(window.__ventumShowLogin)window.__ventumShowLogin(true);}});setInterval(function(){var u=firebase.auth().currentUser;if(u)u.getIdToken(true).then(function(t){window.__idToken=t;});},1800000);</script><style>
   :root {
     color-scheme: light;
     --primary: #1a1a2e; --accent: #e94560; --accent2: #0f3460;
@@ -208,7 +208,7 @@
 </style>
 </head>
 <body>
-<div id="login-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;"><div style="background:#16213e;border-radius:16px;padding:40px 36px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">&#9889;</div><h2 style="color:#fff;margin:0 0 4px;font-size:1.4rem;">Ventum</h2><p style="color:#888;margin:0 0 28px;font-size:0.85rem;">Daily Sales Log</p><input id="login-pw" type="password" placeholder="Enter password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" onkeydown="if(event.key==='Enter')document.getElementById('login-btn').click()"/><button id="login-btn" onclick="ventumLogin()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#e94560;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;">Sign In</button><p id="login-err" style="color:#e94560;margin:10px 0 0;font-size:0.85rem;display:none;">Incorrect password. Try again.</p></div></div><script>(function(){var K='vslog_auth';window.ventumLogin=function(){var pw=document.getElementById('login-pw').value;if(pw==='Ventum2014'){sessionStorage.setItem(K,'1');document.getElementById('login-overlay').style.display='none';}else{document.getElementById('login-err').style.display='block';document.getElementById('login-pw').value='';}};if(sessionStorage.getItem(K)==='1'){document.addEventListener('DOMContentLoaded',function(){var el=document.getElementById('login-overlay');if(el)el.style.display='none';});}})();</script>
+<div id='login-overlay' style='position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;'><div style='background:#16213e;border-radius:16px;padding:40px 36px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;'><div style='font-size:2rem;margin-bottom:8px;'>&#9889;</div><h2 style='color:#fff;margin:0 0 4px;font-size:1.4rem;'>Ventum</h2><p style='color:#888;margin:0 0 28px;font-size:0.85rem;'>Daily Sales Log</p><input id='login-email' type='email' placeholder='Email' autocomplete='username' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:10px;outline:none;'><input id='login-pw' type='password' placeholder='Password' autocomplete='current-password' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;'><button id='login-btn' style='width:100%;padding:12px;border-radius:8px;border:none;background:#e94560;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;'>Sign In</button><p id='login-err' style='color:#e94560;margin:10px 0 0;font-size:0.85rem;display:none;'>Incorrect email or password.</p></div></div><script>(function(){function attach(){var btn=document.getElementById('login-btn');var pwEl=document.getElementById('login-pw');var emEl=document.getElementById('login-email');if(!btn)return;btn.addEventListener('click',doLogin);pwEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});emEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});}function doLogin(){var email=document.getElementById('login-email').value.trim();var pw=document.getElementById('login-pw').value;var errEl=document.getElementById('login-err');errEl.style.display='none';firebase.auth().signInWithEmailAndPassword(email,pw).catch(function(err){errEl.textContent=err.message||'Sign in failed';errEl.style.display='block';});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',attach);}else{attach();}window.__ventumShowLogin=function(show){var el=document.getElementById('login-overlay');if(el)el.style.display=show?'flex':'none';};})();</script>
 
 <!-- LOADING (hidden by default) -->
 <div class="loading-overlay" id="loading-overlay" style="display:none;"></div>
@@ -217,7 +217,7 @@
   <div class="header-top">
     <div>
       <h1>📊 Daily Sales Log</h1>
-      <div class="subtitle"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Connecting…</span></div>
+      <div class="subtitle"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Connecting…</span><button onclick='firebase.auth().signOut()' style='background:none;border:none;color:rgba(255,255,255,0.5);font-size:10px;text-decoration:underline;cursor:pointer;padding:0;margin-left:6px;'>sign out</button></div>
     </div>
     <button class="btn-export" onclick="exportCSV()">Export CSV</button>
   </div>
@@ -409,7 +409,7 @@ async function fbPost(data) {
   const timer = setTimeout(()=>ac.abort(), 15000); // 15s timeout
   try {
     // No Content-Type header = no CORS preflight (avoids OPTIONS failure on mobile)
-    const r = await fetch(DB + '.json', {
+    const r = await fetch(withAuth(DB + '.json'), {
       method: 'POST',
       body: JSON.stringify(data),
       signal: ac.signal
@@ -428,9 +428,19 @@ async function fbPost(data) {
 }
 
 async function fbDelete(pushId) {
-  const r = await fetch(DB + '/' + pushId + '.json', { method: 'DELETE' });
+  const r = await fetch(withAuth(DB + '/' + pushId + '.json'), { method: 'DELETE' });
   if (!r.ok) throw new Error('DB delete failed');
 }
+async function fbPatch(pushId, data) {
+const r = await fetch(withAuth(DB + '/' + pushId + '.json'), { method: 'PATCH', body: JSON.stringify(data) });
+if (!r.ok) throw new Error('DB update failed');
+}
+async function logAudit(action, recordId, before, after) {
+try {
+await fetch(withAuth('https://ventum-sales-default-rtdb.firebaseio.com/auditLog.json'), { method: 'POST', body: JSON.stringify({action,recordId,before,after,by:window.currentUserEmail||'unknown',at:new Date().toISOString()}) });
+} catch(e) { console.error('audit log failed', e); }
+}
+
 
 // ─── POLLING SYNC ─────────────────────────────────
 let pollInterval = null;
@@ -546,74 +556,83 @@ function recalc() {
 
 // ─── SAVE ─────────────────────────────────────────
 async function saveEntry() {
-  const date=document.getElementById('entry-date').value;
-  const staff=document.getElementById('staff-name').value.trim();
-  if(!date){showToast('⚠️ Please select a date');return;}
+const date=document.getElementById('entry-date').value;
+const staff=document.getElementById('staff-name').value.trim();
+if(!date){showToast('⚠️ Please select a date');return;}
+if(!window.currentUserEmail){showToast('⚠️ Please sign in first');return;}
 
-  const rc=v('retail-cash'),rk=v('retail-card');
-  const rpc=v('retail-pos-cash'),rpk=v('retail-pos-card');
-  const rp=rpc+rpk;
-  const fc=v('fnb-cash'),fk=v('fnb-card'),fp=v('fnb-pos');
-  const fpc=v('fnb-pos-cash'),fpk=v('fnb-pos-card');
-  const dl=v('deliveroo'),cr=v('careem'),kt=v('keeta');
-  const tc=v('tips-cash'),tk=v('tips-card');
-  const notes=(document.getElementById('variance-notes-retail').value.trim()||'');
-  const notesFnb=(document.getElementById('variance-notes-fnb').value.trim()||'');
-  const totalCash=rc+fc,totalCard=rk+fk,totalDelivery=dl+cr+kt,totalTips=tc+tk;
-  const grand=totalCash+totalCard+totalDelivery-totalTips;
-  const retailCashVar=rpc>0||rc>0?rc-rpc:null;
-  const retailCardVar=rpk>0||rk>0?rk-rpk:null;
-  const fnbCashVar=fpc>0||fc>0?fc-fpc:null;
-  const fnbCardVar=fpk>0||fk>0?fk-fpk:null;
-  const variance=retailCashVar!=null?retailCashVar+(retailCardVar||0)+(fnbCashVar||0)+(fnbCardVar||0):null;
+const rc=v('retail-cash'),rk=v('retail-card');
+const rpc=v('retail-pos-cash'),rpk=v('retail-pos-card');
+const rp=rpc+rpk;
+const fc=v('fnb-cash'),fk=v('fnb-card'),fp=v('fnb-pos');
+const fpc=v('fnb-pos-cash'),fpk=v('fnb-pos-card');
+const dl=v('deliveroo'),cr=v('careem'),kt=v('keeta');
+const tc=v('tips-cash'),tk=v('tips-card');
+const notes=(document.getElementById('variance-notes-retail').value.trim()||'');
+const notesFnb=(document.getElementById('variance-notes-fnb').value.trim()||'');
+const totalCash=rc+fc,totalCard=rk+fk,totalDelivery=dl+cr+kt,totalTips=tc+tk;
+const grand=totalCash+totalCard+totalDelivery-totalTips;
+const retailCashVar=rpc>0||rc>0?rc-rpc:null;
+const retailCardVar=rpk>0||rk>0?rk-rpk:null;
+const fnbCashVar=fpc>0||fc>0?fc-fpc:null;
+const fnbCardVar=fpk>0||fk>0?fk-fpk:null;
+const variance=retailCashVar!=null?retailCashVar+(retailCardVar||0)+(fnbCashVar||0)+(fnbCardVar||0):null;
 
-  // If editing, delete the original entry first
-  if(editingId){
-    try{ await fbDelete(editingId); }catch(e){ console.error('Could not delete old entry',e); }
-    editingId=null;
-  } else {
-    // Check for duplicate date+staff
-    const existing = Object.entries(allData||{}).find(([,e])=>e.date===date&&e.staff===staff);
-    if(existing){
-      if(!confirm('Entry for this date & staff already exists. Replace it?'))return;
-      await fbDelete(existing[0]);
-    }
-  }
+const isEdit=!!editingId;
+const editIdSnapshot=editingId;
+const priorRecord=isEdit?(allData[editIdSnapshot]||null):null;
 
-  const btn=document.getElementById('save-btn');
-  btn.disabled=true; btn.textContent='Saving…'; btn.className='btn-submit saving';
+if(!isEdit){
+const existing=Object.entries(allData||{}).find(([,e])=>e.date===date&&e.staff===staff);
+if(existing){
+if(!confirm('Entry for this date & staff already exists. Replace it?'))return;
+try{await logAudit('delete',existing[0],allData[existing[0]],null);}catch(e){}
+await fbDelete(existing[0]);
+}
+}
 
-  const payload={date,staff,retailPos:rp,retailPosCash:rpc,retailPosCard:rpk,retailCash:rc,retailCard:rk,
-    fnbPos:fpc+fpk+totalDelivery,fnbPosCash:fpc,fnbPosCard:fpk,fnbCash:fc,fnbCard:fk,
-    deliveroo:dl,careem:cr,keeta:kt,tipsCash:tc,tipsCard:tk,
-    retailCashVar,retailCardVar,fnbCashVar,fnbCardVar,
-    totalCash,totalCard,totalDelivery,totalTips,
-    grand,variance,notes,notesFnb,savedAt:new Date().toISOString()};
-  // Backup to localStorage immediately so data is never lost
-  const backupKey = 'pending_'+Date.now();
-  try { localStorage.setItem(backupKey, JSON.stringify(payload)); } catch(e){}
+const btn=document.getElementById('save-btn');
+btn.disabled=true; btn.textContent='Saving…'; btn.className='btn-submit saving';
 
-  let saved=false, lastErr='';
-  for(let attempt=1;attempt<=3;attempt++){
-    try {
-      await fbPost(payload);
-      saved=true; break;
-    } catch(err) {
-      lastErr=err.message||String(err);
-      console.error('Save attempt '+attempt+' failed:',lastErr);
-      if(attempt<3){ btn.textContent='Retrying ('+attempt+'/3)…'; await new Promise(r=>setTimeout(r,3000)); }
-    }
-  }
-  if(saved){
-    try { localStorage.removeItem(backupKey); } catch(e){}
-    showToast('✓ Saved & synced!'); resetForm();
-  } else {
-    showToast('⚠️ Saved locally — will retry when online');
-    resetForm();
-    // Schedule background retry
-    setTimeout(()=>retrySend(backupKey, payload), 30000);
-  }
-  btn.disabled=false; btn.textContent='✓ Save Daily Entry'; btn.className='btn-submit';
+const payload={date,staff,retailPos:rp,retailPosCash:rpc,retailPosCard:rpk,retailCash:rc,retailCard:rk,
+fnbPos:fpc+fpk+totalDelivery,fnbPosCash:fpc,fnbPosCard:fpk,fnbCash:fc,fnbCard:fk,
+deliveroo:dl,careem:cr,keeta:kt,tipsCash:tc,tipsCard:tk,
+retailCashVar,retailCardVar,fnbCashVar,fnbCardVar,
+totalCash,totalCard,totalDelivery,totalTips,
+grand,variance,notes,notesFnb,
+savedAt:isEdit&&priorRecord?(priorRecord.savedAt||new Date().toISOString()):new Date().toISOString(),
+enteredBy:isEdit&&priorRecord?(priorRecord.enteredBy||window.currentUserEmail):window.currentUserEmail,
+lastEditedBy:isEdit?window.currentUserEmail:null,
+lastEditedAt:isEdit?new Date().toISOString():null};
+const backupKey='pending_'+Date.now();
+try{localStorage.setItem(backupKey,JSON.stringify(payload));}catch(e){}
+
+let saved=false,lastErr='';
+for(let attempt=1;attempt<=3;attempt++){
+try{
+if(isEdit){
+await logAudit('edit',editIdSnapshot,priorRecord,payload);
+await fbPatch(editIdSnapshot,payload);
+}else{
+await fbPost(payload);
+}
+saved=true;break;
+}catch(err){
+lastErr=err.message||String(err);
+console.error('Save attempt '+attempt+' failed:',lastErr);
+if(attempt<3){btn.textContent='Retrying ('+attempt+'/3)…';await new Promise(r=>setTimeout(r,3000));}
+}
+}
+editingId=null;
+if(saved){
+try{localStorage.removeItem(backupKey);}catch(e){}
+showToast('✓ Saved & synced!');resetForm();
+}else{
+showToast('⚠️ Saved locally — will retry when online');
+resetForm();
+setTimeout(()=>retrySend(backupKey,payload),30000);
+}
+btn.disabled=false; btn.textContent='✓ Save Daily Entry'; btn.className='btn-submit';
 }
 
 async function retrySend(key, payload){
@@ -1027,10 +1046,10 @@ async function saveBankingRecord(){
     fnbVariance:Math.round((fD-_ohFnb)*100)/100,
     tipsCashVariance:Math.round((tD-_ohTips)*100)/100,
     cashVariance:Math.round((cashDep-_ohTotal)*100)/100,
-    savedAt:new Date().toISOString()
+    savedAt:new Date().toISOString(), enteredBy:window.currentUserEmail
   };
   try{
-    var res=await fetch(DB_BANKING+'.json',{method:'POST',body:JSON.stringify(record)});
+    var res=await fetch(withAuth(DB_BANKING+'.json'),{method:'POST',body:JSON.stringify(record)});
     if(res.ok){
       alert('Banking record saved!');
       ['b-retail-dep','b-fnb-dep','b-tips-cash-dep','b-ref-num'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
