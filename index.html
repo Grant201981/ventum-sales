@@ -792,6 +792,7 @@ async function deleteEntry(id){
   if(pin===null) return;
   if(pin!=='3240'){showToast('❌ Incorrect PIN');return;}
   try{
+    await logAudit('delete', id, allData[id], null);
     await fbDelete(id);
     showToast('Entry deleted');
   }catch(err){showToast('❌ Delete failed');console.error(err);}
@@ -1051,6 +1052,7 @@ async function saveBankingRecord(){
   try{
     var res=await fetch(withAuth(DB_BANKING+'.json'),{method:'POST',body:JSON.stringify(record)});
     if(res.ok){
+      logAudit('banking_save', bankDate, null, record);
       alert('Banking record saved!');
       ['b-retail-dep','b-fnb-dep','b-tips-cash-dep','b-ref-num'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
       document.getElementById('b-notes').value='';
