@@ -219,7 +219,7 @@
       <h1>📊 Daily Sales Log</h1>
       <div class="subtitle"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Connecting…</span><button onclick='firebase.auth().signOut()' style='background:none;border:none;color:rgba(255,255,255,0.5);font-size:10px;text-decoration:underline;cursor:pointer;padding:0;margin-left:6px;'>sign out</button></div>
     </div>
-    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+    <button class="btn-export" onclick="exportCSV()">Export CSV</button><button class="btn-export" onclick="exportBackup()" style="margin-left:8px;">Backup</button>
   </div>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('entry',this)">Entry</button>
@@ -953,6 +953,34 @@ function exportCSV() {
   a.download = 'ventum-sales-' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   showToast('CSV downloaded');
+}
+
+// ─── FULL DATA BACKUP (manual export of sales + banking + audit log) ───
+async function exportBackup() {
+  if (!isAdmin()) { showToast('⚠️ Only managers can export backups'); return; }
+  try {
+    showToast('Preparing backup…');
+    var salesResp = await fetch(withAuth(DB_SALES_B + '.json'));
+    var bankResp = await fetch(withAuth(DB_BANKING + '.json'));
+    var auditResp = await fetch(withAuth('https://ventum-sales-default-rtdb.firebaseio.com/auditLog.json'));
+    var backup = {
+      exportedAt: new Date().toISOString(),
+      exportedBy: window.currentUserEmail,
+      sales: (await salesResp.json()) || {},
+      banking: (await bankResp.json()) || {},
+      auditLog: (await auditResp.json()) || {}
+    };
+    var json = JSON.stringify(backup, null, 2);
+    var a2 = document.createElement('a');
+    a2.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    a2.download = 'ventum-sales-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a2.click();
+    logAudit('backup_export', null, null, {exportedBy: window.currentUserEmail});
+    showToast('Backup downloaded');
+  } catch (ex) {
+    showToast('❌ Backup failed: ' + ex.message);
+    console.error('exportBackup', ex);
+  }
 }
 
 // \u2500\u2500\u2500 START
