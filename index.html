@@ -6,7 +6,7 @@
 <title>Daily Sales Log</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous">
 </script>
-<script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js'></script><script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js'></script><script>firebase.initializeApp({apiKey:'AIzaSyANXG4-sGkrI-7YYD4g1sJ8PMtrLqkEkEM',authDomain:'ventum-sales.firebaseapp.com',databaseURL:'https://ventum-sales-default-rtdb.firebaseio.com',projectId:'ventum-sales',storageBucket:'ventum-sales.firebasestorage.app',messagingSenderId:'275323809742',appId:'1:275323809742:web:55ba3a3b63e1bc1e35059f'});window.currentUserEmail=null;window.__idToken=null;function withAuth(u){return window.__idToken?(u+(u.indexOf('?')>-1?'&':'?')+['a','u','t','h'].join('')+'='+window.__idToken):u;}firebase.auth().onAuthStateChanged(function(user){if(user){window.currentUserEmail=user.email;user.getIdToken().then(function(t){window.__idToken=t;});if(window.__ventumShowLogin)window.__ventumShowLogin(false);}else{window.currentUserEmail=null;window.__idToken=null;if(window.__ventumShowLogin)window.__ventumShowLogin(true);}});setInterval(function(){var u=firebase.auth().currentUser;if(u)u.getIdToken(true).then(function(t){window.__idToken=t;});},1800000);</script><style>
+<script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js'></script><script src='https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js'></script><script>firebase.initializeApp({apiKey:'AIzaSyANXG4-sGkrI-7YYD4g1sJ8PMtrLqkEkEM',authDomain:'ventum-sales.firebaseapp.com',databaseURL:'https://ventum-sales-default-rtdb.firebaseio.com',projectId:'ventum-sales',storageBucket:'ventum-sales.firebasestorage.app',messagingSenderId:'275323809742',appId:'1:275323809742:web:55ba3a3b63e1bc1e35059f'});window.currentUserEmail=null;window.__idToken=null;function withAuth(u){return window.__idToken?(u+(u.indexOf('?')>-1?'&':'?')+['a','u','t','h'].join('')+'='+window.__idToken):u;}firebase.auth().onAuthStateChanged(function(user){if(user){window.currentUserEmail=user.email;user.getIdToken().then(function(t){window.__idToken=t;});if(window.__ventumShowLogin)window.__ventumShowLogin(false);}else{window.currentUserEmail=null;window.__idToken=null;if(window.__ventumShowLogin)window.__ventumShowLogin(true);}});setInterval(function(){var u=firebase.auth().currentUser;if(u)u.getIdToken(true).then(function(t){window.__idToken=t;});},1800000);(function(){var IDLE_LIMIT=30*60*1000;var idleTimer=null;function resetIdleTimer(){if(!firebase.auth().currentUser)return;if(idleTimer)clearTimeout(idleTimer);idleTimer=setTimeout(function(){if(firebase.auth().currentUser){firebase.auth().signOut();if(window.showToast)window.showToast('Signed out after 30 minutes of inactivity');}},IDLE_LIMIT);}['mousemove','keydown','click','touchstart','scroll'].forEach(function(evt){document.addEventListener(evt,resetIdleTimer,{passive:true});});firebase.auth().onAuthStateChanged(function(user){if(user){resetIdleTimer();}else if(idleTimer){clearTimeout(idleTimer);idleTimer=null;}});})();</script><style>
   :root {
     color-scheme: light;
     --primary: #1a1a2e; --accent: #e94560; --accent2: #0f3460;
@@ -208,7 +208,7 @@
 </style>
 </head>
 <body>
-<div id='login-overlay' style='position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;'><div style='background:#16213e;border-radius:16px;padding:40px 36px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;'><div style='font-size:2rem;margin-bottom:8px;'>&#9889;</div><h2 style='color:#fff;margin:0 0 4px;font-size:1.4rem;'>Ventum</h2><p style='color:#888;margin:0 0 28px;font-size:0.85rem;'>Daily Sales Log</p><input id='login-email' type='email' placeholder='Email' autocomplete='username' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:10px;outline:none;'><input id='login-pw' type='password' placeholder='Password' autocomplete='current-password' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;'><button id='login-btn' style='width:100%;padding:12px;border-radius:8px;border:none;background:#e94560;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;'>Sign In</button><p id='login-err' style='color:#e94560;margin:10px 0 0;font-size:0.85rem;display:none;'>Incorrect email or password.</p></div></div><script>(function(){function attach(){var btn=document.getElementById('login-btn');var pwEl=document.getElementById('login-pw');var emEl=document.getElementById('login-email');if(!btn)return;btn.addEventListener('click',doLogin);pwEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});emEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});}function doLogin(){var email=document.getElementById('login-email').value.trim();var pw=document.getElementById('login-pw').value;var errEl=document.getElementById('login-err');errEl.style.display='none';firebase.auth().signInWithEmailAndPassword(email,pw).catch(function(err){errEl.textContent=err.message||'Sign in failed';errEl.style.display='block';});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',attach);}else{attach();}window.__ventumShowLogin=function(show){var el=document.getElementById('login-overlay');if(el)el.style.display=show?'flex':'none';};})();</script>
+<div id='login-overlay' style='position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;'><div style='background:#16213e;border-radius:16px;padding:40px 36px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.5);text-align:center;'><div style='font-size:2rem;margin-bottom:8px;'>&#9889;</div><h2 style='color:#fff;margin:0 0 4px;font-size:1.4rem;'>Ventum</h2><p style='color:#888;margin:0 0 28px;font-size:0.85rem;'>Daily Sales Log</p><input id='login-email' type='email' placeholder='Email' autocomplete='username' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:10px;outline:none;'><input id='login-pw' type='password' placeholder='Password' autocomplete='current-password' style='width:100%;box-sizing:border-box;padding:12px 14px;border-radius:8px;border:1px solid #333;background:#0f3460;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;'><button id='login-btn' style='width:100%;padding:12px;border-radius:8px;border:none;background:#e94560;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;'>Sign In</button><p id='login-err' style='color:#e94560;margin:10px 0 0;font-size:0.85rem;display:none;'>Incorrect email or password.</p><p id='login-msg' style='color:#2ecc71;margin:10px 0 0;font-size:0.85rem;display:none;'></p><a id='login-forgot' href='javascript:void(0)' style='display:inline-block;margin-top:14px;color:#8a8fbf;font-size:0.8rem;text-decoration:underline;cursor:pointer;'>Forgot password?</a></div></div><script>(function(){function attach(){var btn=document.getElementById('login-btn');var pwEl=document.getElementById('login-pw');var emEl=document.getElementById('login-email');var fgt=document.getElementById('login-forgot');if(!btn)return;btn.addEventListener('click',doLogin);pwEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});emEl.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});if(fgt)fgt.addEventListener('click',doForgotPassword);}function doLogin(){var email=document.getElementById('login-email').value.trim();var pw=document.getElementById('login-pw').value;var errEl=document.getElementById('login-err');var msgEl=document.getElementById('login-msg');errEl.style.display='none';if(msgEl)msgEl.style.display='none';firebase.auth().signInWithEmailAndPassword(email,pw).catch(function(err){errEl.textContent=err.message||'Sign in failed';errEl.style.display='block';});}function doForgotPassword(){var errEl=document.getElementById('login-err');var msgEl=document.getElementById('login-msg');var email=document.getElementById('login-email').value.trim();errEl.style.display='none';if(msgEl)msgEl.style.display='none';if(!email){errEl.textContent='Enter your email above first, then tap "Forgot password?"';errEl.style.display='block';return;}firebase.auth().sendPasswordResetEmail(email).then(function(){if(msgEl){msgEl.textContent='Reset link sent — check your email.';msgEl.style.display='block';}}).catch(function(err){errEl.textContent=err.message||'Could not send reset email.';errEl.style.display='block';});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',attach);}else{attach();}window.__ventumShowLogin=function(show){var el=document.getElementById('login-overlay');if(el)el.style.display=show?'flex':'none';};})();</script>
 
 <!-- LOADING (hidden by default) -->
 <div class="loading-overlay" id="loading-overlay" style="display:none;"></div>
@@ -1071,8 +1071,24 @@ function loadBankingHistory(bankData){
   if(!bankData||!Object.keys(bankData).length){c.innerHTML='<p style="color:var(--muted);font-size:0.85rem;">No banking records yet.</p>';return;}
   var recs=Object.entries(bankData).sort(function(a,b){return b[1].bankDate.localeCompare(a[1].bankDate);});
   c.innerHTML=recs.map(function(kv){
+    var id=kv[0];
     var v=kv[1];
     var cv=v.cashVariance||0;
+    var needsReview=(cv!==0)&&!v.reviewedBy;
+    var reviewBlock='';
+    if(cv!==0){
+      if(v.reviewedBy){
+        var selfNote=(v.reviewedBy===v.enteredBy)?' (self-reviewed)':'';
+        reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--success);">&#10003; Reviewed by '+v.reviewedBy+selfNote+'</div>';
+      }else if(isAdmin()){
+        reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">'
+          +'<span style="font-size:0.78rem;color:var(--danger);font-weight:600;">&#9888; Unreviewed variance</span>'
+          +'<button onclick="acknowledgeVariance(\''+id+'\')" style="background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;">Acknowledge</button>'
+          +'</div>';
+      }else{
+        reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--danger);font-weight:600;">&#9888; Unreviewed variance</div>';
+      }
+    }
     return '<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong>'+v.bankDate+'</strong><span style="color:var(--accent);font-weight:600;">'+bfmt(v.cashDeposited)+'</span></div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;color:var(--muted);">'
@@ -1083,8 +1099,21 @@ function loadBankingHistory(bankData){
       +(v.refNum?'<span>Ref:</span><span style="text-align:right;color:var(--text);">'+v.refNum+'</span>':'')
       +'</div>'
       +(v.notes?'<p style="margin:8px 0 0;font-style:italic;color:var(--muted);">'+v.notes+'</p>':'')
+      +reviewBlock
       +'</div>';
   }).join('');
+}
+async function acknowledgeVariance(id){
+  if(!isAdmin()){showToast('⚠️ Only managers can review variances');return;}
+  try{
+    var patch={reviewedBy:window.currentUserEmail,reviewedAt:new Date().toISOString()};
+    var res=await fetch(withAuth(DB_BANKING+'/'+id+'.json'),{method:'PATCH',body:JSON.stringify(patch)});
+    if(res.ok){
+      logAudit('banking_reviewed',id,null,patch);
+      showToast('Variance acknowledged');
+      loadBankingData();
+    }else{showToast('❌ Could not save review');}
+  }catch(ex){showToast('❌ Error: '+ex.message);console.error(ex);}
 }
 </script>
 </body>
