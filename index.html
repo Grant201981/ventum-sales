@@ -969,8 +969,8 @@ function bfmt(n){return(isNaN(n)||n===null||n===undefined)?'-':'AED '+Number(n).
 async function loadBankingData(){
   try{
     document.getElementById('b-oh-total').textContent='Loading...';
-    var salesResp=await fetch(DB_SALES_B+'.json');
-    var bankResp=await fetch(DB_BANKING+'.json');
+    var salesResp=await fetch(withAuth(DB_SALES_B+'.json'));
+    var bankResp=await fetch(withAuth(DB_BANKING+'.json'));
     var salesData=await salesResp.json();
     var bankData=await bankResp.json();
     var sRetail=0,sFnb=0,sTips=0,sTotal=0,sCard=0;
