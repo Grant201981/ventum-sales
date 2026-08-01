@@ -366,7 +366,7 @@
 </div>
 <!-- ═══ BANKING TAB ═══ -->
 <div id="tab-banking" class="tab-content">
-  <div id="banking-lock" style="padding:40px 16px;text-align:center;"><div class="card" style="max-width:320px;margin:0 auto;padding:32px 24px;"><div style="font-size:2rem;margin-bottom:8px;">🏦</div><h3 style="color:var(--text);margin:0 0 6px;">Manager Access</h3><p style="color:var(--muted);font-size:0.85rem;margin:0 0 20px;">Cash Banking Log</p><input type="password" id="banking-pin" placeholder="Enter PIN" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1.1rem;text-align:center;margin-bottom:10px;" onkeydown="if(event.key==='Enter')unlockBanking()"/><button onclick="unlockBanking()" class="save-btn" style="width:100%;">Unlock</button><p id="banking-pin-err" style="color:var(--danger);margin:10px 0 0;font-size:0.85rem;display:none;">Incorrect PIN.</p></div></div>
+  <div id="banking-lock" style="padding:40px 16px;text-align:center;"></div>
   <div id="banking-content" style="display:none;padding-bottom:40px;">
     <div class="section" id="b-onhand-section"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span class="section-title" style="margin:0;">&#x1F4B0; Cash on Hand</span><button onclick="loadBankingData()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;font-size:0.78rem;cursor:pointer;">&#x21BB; Refresh</button></div><div class="row-group"><div class="input-row"><span class="input-label">Retail Cash</span><span id="b-oh-retail" class="value-display">-</span></div><div class="input-row"><span class="input-label">Coffee / F&amp;B Cash</span><span id="b-oh-fnb" class="value-display">-</span></div><div class="input-row"><span class="input-label">Cash Tips</span><span id="b-oh-tips" class="value-display">-</span></div><div class="input-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span class="input-label" style="font-weight:600;">Total Cash on Hand</span><span id="b-oh-total" class="value-display" style="font-weight:700;color:var(--accent);font-size:1.1rem;">-</span></div><div class="input-row"><span class="input-label" style="color:var(--muted);">Card Tips (settled w/ card)</span><span id="b-oh-tips-card" class="value-display" style="color:var(--muted);">-</span></div></div></div>
     <div class="section" id="b-denom-section"><div class="section-title">Denomination Count</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;"><div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">NOTES</div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 1000</span><input type="number" id="dn-1000" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1000">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 500</span><input type="number" id="dn-500" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-500">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 200</span><input type="number" id="dn-200" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-200">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 100</span><input type="number" id="dn-100" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-100">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 50</span><input type="number" id="dn-50" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-50">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 20</span><input type="number" id="dn-20" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-20">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 10</span><input type="number" id="dn-10" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-10">0</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 5</span><input type="number" id="dn-5" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-5">0</span></span></div><div style="grid-column:1/-1;color:var(--muted);font-size:0.75rem;font-weight:600;padding:4px 0;">COINS</div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">AED 1</span><input type="number" id="dn-1" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-1">0.00</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">50 Fils</span><input type="number" id="dn-05" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-05">0.00</span></span></div><div style="display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:8px;padding:8px 10px;"><span style="color:var(--muted);font-size:0.8rem;min-width:52px;">25 Fils</span><input type="number" id="dn-025" min="0" value="0" inputmode="numeric" oninput="calcDenomTotal()" style="width:50px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:center;font-size:0.9rem;"/><span style="color:var(--muted);font-size:0.75rem;">= <span id="ds-025">0.00</span></span></div></div><div style="background:var(--card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-weight:600;">Total Counted</span><span id="b-denom-total" style="color:var(--accent);font-size:1.1rem;font-weight:700;">AED 0.00</span></div></div>
@@ -384,6 +384,8 @@
 <script>
 const DB = 'https://ventum-sales-default-rtdb.firebaseio.com/sales';
 const C = 'AED ';
+const ADMIN_EMAILS = ['grant@ventumracing-me.com','roger@ventumracing-me.com'];
+function isAdmin(){ return !!(window.currentUserEmail && ADMIN_EMAILS.indexOf(window.currentUserEmail.toLowerCase())>-1); }
 let allData = {}; // keyed by Firebase push ID
 let editingId = null; // set when editing an existing entry
 let salesChart = null;
@@ -747,7 +749,7 @@ function renderHistory(){
         '<div style="display:flex;align-items:center;gap:8px;">'+
           '<div><div class="h-total">'+fmt(e.grand||0)+'</div><div class="expand-toggle">tap for details</div></div>'+
           '<button class="btn-edit" data-id="'+e._id+'" onclick="event.stopPropagation();loadEntry(this.dataset.id)" title="Edit">✏</button>'+
-          '<button class="btn-delete" data-id="'+e._id+'" onclick="event.stopPropagation();deleteEntry(this.dataset.id)" title="Delete">x</button>'+
+          (isAdmin()?'<button class="btn-delete" data-id="'+e._id+'" onclick="event.stopPropagation();deleteEntry(this.dataset.id)" title="Delete">x</button>':'')+
         '</div>'+
       '</div>'+
       retailRow+fnbRow+totalPOSRow+details+
@@ -788,9 +790,8 @@ function loadEntry(id){
 }
 
 async function deleteEntry(id){
-  const pin=prompt('Enter admin PIN to delete:');
-  if(pin===null) return;
-  if(pin!=='3240'){showToast('❌ Incorrect PIN');return;}
+  if(!isAdmin()){showToast('⚠️ Only managers can delete entries');return;}
+  if(!confirm('Delete this entry? This cannot be undone.')) return;
   try{
     await logAudit('delete', id, allData[id], null);
     await fbDelete(id);
@@ -907,6 +908,22 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'month') renderMonth();
   if (name === 'history') renderHistory();
+  if (name === 'banking') openBanking();
+}
+
+function openBanking(){
+  var lock=document.getElementById('banking-lock');
+  var content=document.getElementById('banking-content');
+  if(isAdmin()){
+    lock.style.display='none';
+    content.style.display='block';
+    document.getElementById('b-bank-date').value=new Date().toISOString().split('T')[0];
+    loadBankingData();
+  } else {
+    content.style.display='none';
+    lock.style.display='block';
+    lock.innerHTML='<div class="card" style="max-width:320px;margin:0 auto;padding:32px 24px;"><div style="font-size:2rem;margin-bottom:8px;">\u{1F512}</div><h3 style="color:var(--text);margin:0 0 6px;">Manager Access Only</h3><p style="color:var(--muted);font-size:0.85rem;margin:0;">Banking access is restricted to managers. Contact Grant or Roger if you need access.</p></div>';
+  }
 }
 
 // \u2500\u2500\u2500 TOAST
@@ -943,25 +960,12 @@ startSync();
 
 
 // ═══ BANKING TAB ═══
-var BANKING_PIN='3240';
 var DB_BANKING='https://ventum-sales-default-rtdb.firebaseio.com/banking';
 var DB_SALES_B='https://ventum-sales-default-rtdb.firebaseio.com/sales';
 var _ohRetail=0,_ohFnb=0,_ohTips=0,_ohTotal=0,_ohCard=0;
 var DENOM_IDS=['dn-1000','dn-500','dn-200','dn-100','dn-50','dn-20','dn-10','dn-5','dn-1','dn-05','dn-025'];
 var DENOM_VALS=[1000,500,200,100,50,20,10,5,1,0.5,0.25];
 function bfmt(n){return(isNaN(n)||n===null||n===undefined)?'-':'AED '+Number(n).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function unlockBanking(){
-  var pin=document.getElementById('banking-pin').value;
-  if(pin==='3240'){
-    document.getElementById('banking-lock').style.display='none';
-    document.getElementById('banking-content').style.display='block';
-    document.getElementById('b-bank-date').value=new Date().toISOString().split('T')[0];
-    loadBankingData();
-  }else{
-    document.getElementById('banking-pin-err').style.display='block';
-    document.getElementById('banking-pin').value='';
-  }
-}
 async function loadBankingData(){
   try{
     document.getElementById('b-oh-total').textContent='Loading...';
