@@ -561,6 +561,7 @@ async function saveEntry() {
 const date=document.getElementById('entry-date').value;
 const staff=document.getElementById('staff-name').value.trim();
 if(!date){showToast('⚠️ Please select a date');return;}
+if(!staff){showToast('⚠️ Please select your name');return;}
 if(!window.currentUserEmail){showToast('⚠️ Please sign in first');return;}
 
 const rc=v('retail-cash'),rk=v('retail-card');
@@ -760,6 +761,7 @@ function renderHistory(){
 function loadEntry(id){
   const e=allData[id];
   if(!e){showToast('Entry not found');return;}
+  if(!confirm('Load '+(e.date||'this entry')+' — '+(e.staff||'unknown staff')+' for editing?\n\nThis will replace anything currently in the form.')) return;
   editingId=id;
   // Populate form fields
   document.getElementById('entry-date').value=e.date||'';
@@ -996,30 +998,33 @@ var DENOM_VALS=[1000,500,200,100,50,20,10,5,1,0.5,0.25];
 function bfmt(n){return(isNaN(n)||n===null||n===undefined)?'-':'AED '+Number(n).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});}
 var _lastSalesData=null,_lastBankData=null;
 function computeCashOnHand(salesData,bankData,cutoff){
-  var sRetail=0,sFnb=0,sTips=0,sTotal=0,sCard=0;
+  var sRetail=0,sFnb=0,sTips=0,sCard=0;
   Object.values(salesData||{}).forEach(function(e){
     if(!e||typeof e!=='object')return;
     if(cutoff&&e.date>cutoff)return;
     sRetail+=(parseFloat(e.retailCash)||0);
     sFnb+=(parseFloat(e.fnbCash)||0);
     sTips+=(parseFloat(e.tipsCash)||0);
-    sTotal+=(parseFloat(e.totalCash)||0);
     sCard+=(parseFloat(e.tipsCard)||0);
   });
-  var bRetail=0,bFnb=0,bTips=0,bTotal=0;
+  var bRetail=0,bFnb=0,bTips=0;
   Object.values(bankData||{}).forEach(function(b){
     if(!b||typeof b!=='object')return;
     if(cutoff&&b.bankDate>cutoff)return;
     bRetail+=(parseFloat(b.retailDeposited)||0);
     bFnb+=(parseFloat(b.fnbDeposited)||0);
     bTips+=(parseFloat(b.tipsCashDeposited)||0);
-    bTotal+=(parseFloat(b.cashDeposited)||0);
   });
+  // NOTE: total is derived from retail+fnb+tips directly (not a separately-tracked
+  // totalCash/cashDeposited field) so it always matches the three sub-lines shown
+  // on screen. Previously it used sales.totalCash (retail+fnb only, no tips) minus
+  // banking.cashDeposited (retail+fnb+tips), which silently under-counted the total
+  // by the tips amount every time tips were banked.
   return{
     retail:Math.round((sRetail-bRetail)*100)/100,
     fnb:Math.round((sFnb-bFnb)*100)/100,
     tips:Math.round((sTips-bTips)*100)/100,
-    total:Math.round((sTotal-bTotal)*100)/100,
+    total:Math.round(((sRetail+sFnb+sTips)-(bRetail+bFnb+bTips))*100)/100,
     card:Math.round(sCard*100)/100
   };
 }
