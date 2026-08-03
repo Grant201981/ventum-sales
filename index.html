@@ -440,8 +440,17 @@ async function fbPost(data) {
 }
 
 async function fbDelete(pushId) {
-  const r = await fetch(withAuth(DB + '/' + pushId + '.json'), { method: 'DELETE' });
-  if (!r.ok) throw new Error('DB delete failed');
+  const ac = new AbortController();
+  const timer = setTimeout(()=>ac.abort(), 15000);
+  try {
+    const r = await fetch(withAuth(DB + '/' + pushId + '.json'), { method: 'DELETE', signal: ac.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('DB delete failed');
+  } catch(e) {
+    clearTimeout(timer);
+    if(e.name==='AbortError') throw new Error('Connection timed out - try again');
+    throw e;
+  }
 }
 async function fbPatch(pushId, data) {
 const ac = new AbortController();
@@ -659,12 +668,21 @@ lastEditedAt:isEdit?new Date().toISOString():null};
 const pendingMatch=isEdit?null:findPendingLocalSave(date,staff);
 const recordId=isEdit?editIdSnapshot:(pendingMatch?pendingMatch.id:genLocalId());
 const backupKey=pendingMatch?pendingMatch.key:('pending_'+Date.now());
-try{localStorage.setItem(backupKey,JSON.stringify({id:recordId,isEdit:isEdit,payload:payload}));}catch(e){}
+// version marks THIS specific save attempt. If an earlier attempt for the same
+// record is still waiting on its 30s/2min retry timer when this one lands, that
+// older attempt will see (on its next wake-up) that the stored version has moved
+// on, and stand down instead of overwriting this newer data with its stale copy.
+const saveVersion=Date.now();
+const backupRec={id:recordId,isEdit:isEdit,payload:payload,version:saveVersion,priorRecord:isEdit?priorRecord:null};
+try{localStorage.setItem(backupKey,JSON.stringify(backupRec));}catch(e){}
 
 let saved=false,lastErr='';
 for(let attempt=1;attempt<=3;attempt++){
 try{
-await logAudit(isEdit?'edit':'create',recordId,isEdit?priorRecord:null,payload);
+// Fire-and-forget: logAudit has no timeout of its own, so awaiting it here
+// would let a hung audit request block the actual data save indefinitely,
+// defeating fbPatch's own timeout. It already swallows its own errors.
+logAudit(isEdit?'edit':'create',recordId,isEdit?priorRecord:null,payload);
 await fbPatch(recordId,payload);
 saved=true;break;
 }catch(err){
@@ -676,28 +694,44 @@ if(attempt<3){btn.textContent='Retrying ('+attempt+'/3)…';await new Promise(r=
 editingId=null;
 if(saved){
 try{localStorage.removeItem(backupKey);}catch(e){}
+// Update the local copy immediately rather than waiting for the next ~10s poll,
+// so an immediate resave of the same date+staff sees this one and offers the
+// "already exists" prompt instead of silently creating a duplicate record.
+allData[recordId]=payload;
 showToast('✓ Saved & synced!');resetForm();
 }else{
-showToast('⚠️ Saved locally — will retry when online');
+showToast('⚠️ Saved locally — will retry ('+lastErr+')');
 resetForm();
-setTimeout(()=>retrySend(backupKey,recordId,payload,isEdit),30000);
+setTimeout(()=>retrySend(backupKey,backupRec),30000);
 }
 btn.disabled=false; btn.textContent='✓ Save Daily Entry'; btn.className='btn-submit';
 }
 
-async function retrySend(key, id, payload, isEditRec){
+async function retrySend(key, rec){
+  // Stand down if a newer save has since taken over this slot (e.g. the same
+  // entry was corrected and resaved while this older attempt was still waiting
+  // to retry) — otherwise this stale attempt could silently overwrite the
+  // corrected data with what it originally captured.
+  try{
+    const current=localStorage.getItem(key);
+    if(!current)return; // already synced/cleared by another attempt
+    const parsed=JSON.parse(current);
+    if(!parsed||parsed.version!==rec.version)return; // superseded — stand down
+  }catch(e){}
   try {
-    await fbPatch(id, payload);
+    await fbPatch(rec.id, rec.payload);
     // The inline logAudit call in saveEntry can fail alongside the save itself when
     // genuinely offline, so a delayed/recovered sync would otherwise leave no audit
-    // trail at all. Log it here too (best-effort) once the data actually lands.
-    try{await logAudit(isEditRec?'edit_recovered':'create_recovered',id,null,payload);}catch(e){}
+    // trail at all. Log it here too (best-effort) once the data actually lands —
+    // including the pre-edit snapshot so the audit entry is actually useful.
+    try{await logAudit(rec.isEdit?'edit_recovered':'create_recovered',rec.id,rec.priorRecord||null,rec.payload);}catch(e){}
     try { localStorage.removeItem(key); } catch(e){}
+    allData[rec.id]=rec.payload;
     showToast('✓ Synced to database!');
     await pollData();
   } catch(e){
     // Try again in 2 minutes
-    setTimeout(()=>retrySend(key, id, payload, isEditRec), 120000);
+    setTimeout(()=>retrySend(key, rec), 120000);
   }
 }
 
@@ -717,7 +751,7 @@ function resumePendingSaves(){
         const rec=JSON.parse(localStorage.getItem(k));
         if(rec&&rec.id&&rec.payload){
           showToast('Recovering an entry saved before the app closed…');
-          retrySend(k, rec.id, rec.payload, !!rec.isEdit);
+          retrySend(k, rec);
         }
       }catch(e){}
     });
@@ -820,7 +854,7 @@ function renderHistory(){
 
     return '<div class="history-entry">'+
       '<div class="history-header" data-id="'+e._id+'" onclick="toggleHistory(this.dataset.id)">'+
-        '<div><div class="h-date">'+fd+'</div><div class="h-staff">'+(e.staff||'No name')+'</div></div>'+
+        '<div><div class="h-date">'+fd+'</div><div class="h-staff">'+escapeHtml(e.staff||'No name')+'</div></div>'+
         '<div style="display:flex;align-items:center;gap:8px;">'+
           '<div><div class="h-total">'+fmt(e.grand||0)+'</div><div class="expand-toggle">tap for details</div></div>'+
           '<button class="btn-edit" data-id="'+e._id+'" onclick="event.stopPropagation();loadEntry(this.dataset.id)" title="Edit">✏</button>'+
@@ -959,7 +993,7 @@ function renderMonth(){
   document.getElementById('cash-section').style.display='block';
   const cashRows=data.map(e=>{
     const d=new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-    return '<div class="cash-row"><div><div class="cr-date">'+d+'</div><div class="cr-staff">'+(e.staff||'\u2014')+'</div></div><div style="text-align:right"><div class="cr-amount">'+fmt(e.totalCash||0)+'</div>'+(e.tipsCash>0?'<div class="cr-tips">+ '+fmt(e.tipsCash)+' tips</div>':'')+'</div></div>';
+    return '<div class="cash-row"><div><div class="cr-date">'+d+'</div><div class="cr-staff">'+escapeHtml(e.staff||'\u2014')+'</div></div><div style="text-align:right"><div class="cr-amount">'+fmt(e.totalCash||0)+'</div>'+(e.tipsCash>0?'<div class="cr-tips">+ '+fmt(e.tipsCash)+' tips</div>':'')+'</div></div>';
   });
   cashRows.push('<div class="cash-row" style="background:#ecfdf5;font-weight:700;"><div style="color:#065f46;">MONTH TOTAL</div><div class="cr-amount">'+fmt(T.totalCash)+'</div></div>');
   document.getElementById('cash-rows').innerHTML=cashRows.join('');
@@ -971,7 +1005,7 @@ function renderMonth(){
     const d=new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
     const vr=e.variance;
     const vrCell=vr==null?'<td>\u2014</td>':vr===0?'<td>\u2713</td>':vr>0?'<td class="vpos">\u25b2'+fmt(Math.abs(vr))+'</td>':'<td class="vneg">\u25bc'+fmt(Math.abs(vr))+'</td>';
-    return '<tr><td>'+d+(e.staff?'<br><span style="font-size:10px;color:#999">'+e.staff+'</span>':'')+'</td><td>'+fmt(e.retailCash||0)+'</td><td>'+fmt(e.retailCard||0)+'</td><td>'+fmt(e.fnbCash||0)+'</td><td>'+fmt(e.fnbCard||0)+'</td><td>'+fmt(e.deliveroo||0)+'</td><td>'+fmt(e.careem||0)+'</td><td>'+fmt(e.keeta||0)+'</td><td>'+fmt((e.tipsCash||0)+(e.tipsCard||0))+'</td><td><strong>'+fmt(e.grand||0)+'</strong></td>'+vrCell+'</tr>';
+    return '<tr><td>'+d+(e.staff?'<br><span style="font-size:10px;color:#999">'+escapeHtml(e.staff)+'</span>':'')+'</td><td>'+fmt(e.retailCash||0)+'</td><td>'+fmt(e.retailCard||0)+'</td><td>'+fmt(e.fnbCash||0)+'</td><td>'+fmt(e.fnbCard||0)+'</td><td>'+fmt(e.deliveroo||0)+'</td><td>'+fmt(e.careem||0)+'</td><td>'+fmt(e.keeta||0)+'</td><td>'+fmt((e.tipsCash||0)+(e.tipsCard||0))+'</td><td><strong>'+fmt(e.grand||0)+'</strong></td>'+vrCell+'</tr>';
   }).join('')+'<tr style="background:#f8fafc;font-weight:700;"><td>TOTAL</td><td>'+fmt(T.retailCash)+'</td><td>'+fmt(T.retailCard)+'</td><td>'+fmt(T.fnbCash)+'</td><td>'+fmt(T.fnbCard)+'</td><td>'+fmt(T.deliveroo)+'</td><td>'+fmt(T.careem)+'</td><td>'+fmt(T.keeta||0)+'</td><td>'+fmt(T.totalTips)+'</td><td><strong>'+fmt(T.grand)+'</strong></td><td>'+(T.varianceSum===0?'\u2713':T.varianceSum>0?'\u25b2'+fmt(T.varianceSum):'\u25bc'+fmt(Math.abs(T.varianceSum)))+'</td></tr></tbody>';
   document.getElementById('month-table').innerHTML=thead+tbody;
 }
@@ -1245,7 +1279,7 @@ function loadBankingHistory(salesData,bankData){
     if(cv!==0){
       if(v.reviewedBy){
         var selfNote=(v.reviewedBy===v.enteredBy)?' (self-reviewed)':'';
-        reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--success);">&#10003; Reviewed by '+v.reviewedBy+selfNote+'</div>';
+        reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--success);">&#10003; Reviewed by '+escapeHtml(v.reviewedBy)+selfNote+'</div>';
       }else if(isAdmin()){
         reviewBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">'
           +'<span style="font-size:0.78rem;color:var(--danger);font-weight:600;">&#9888; Unreviewed variance</span>'
@@ -1256,7 +1290,7 @@ function loadBankingHistory(salesData,bankData){
       }
     }
     return '<div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem;">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong>'+v.bankDate+'</strong><span style="color:var(--accent);font-weight:600;">'+bfmt(v.cashDeposited)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><strong>'+escapeHtml(v.bankDate)+'</strong><span style="color:var(--accent);font-weight:600;">'+bfmt(v.cashDeposited)+'</span></div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;color:var(--muted);">'
       +'<span>Retail dep:</span><span style="text-align:right;color:var(--text);">'+bfmt(v.retailDeposited)+'</span>'
       +'<span>Coffee dep:</span><span style="text-align:right;color:var(--text);">'+bfmt(v.fnbDeposited)+'</span>'
