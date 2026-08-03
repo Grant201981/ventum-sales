@@ -437,6 +437,10 @@ async function fbPatch(pushId, data) {
 const r = await fetch(withAuth(DB + '/' + pushId + '.json'), { method: 'PATCH', body: JSON.stringify(data) });
 if (!r.ok) throw new Error('DB update failed');
 }
+// Generates a stable client-side id for a NEW entry so repeated save attempts
+// (retries, or a resumed pending save after the app was closed) always write
+// to the same record instead of creating duplicates via fbPost/push.
+function genLocalId(){ return 'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
 async function logAudit(action, recordId, before, after) {
 try {
 await fetch(withAuth('https://ventum-sales-default-rtdb.firebaseio.com/auditLog.json'), { method: 'POST', body: JSON.stringify({action,recordId,before,after,by:window.currentUserEmail||'unknown',at:new Date().toISOString()}) });
@@ -467,6 +471,7 @@ async function pollData() {
     hideOverlay();
     setSyncStatus('live');
     refreshAllViews();
+    resumePendingSaves();
   } catch(err) {
     hideOverlay(); // always show the app even if Firebase is unreachable
     setSyncStatus('offline');
@@ -607,18 +612,17 @@ savedAt:isEdit&&priorRecord?(priorRecord.savedAt||new Date().toISOString()):new 
 enteredBy:isEdit&&priorRecord?(priorRecord.enteredBy||window.currentUserEmail):window.currentUserEmail,
 lastEditedBy:isEdit?window.currentUserEmail:null,
 lastEditedAt:isEdit?new Date().toISOString():null};
+// Same id is reused across every attempt (initial + retries + a later resumed save),
+// and we PATCH to it instead of POST/push, so no attempt can ever create a duplicate row.
+const recordId=isEdit?editIdSnapshot:genLocalId();
 const backupKey='pending_'+Date.now();
-try{localStorage.setItem(backupKey,JSON.stringify(payload));}catch(e){}
+try{localStorage.setItem(backupKey,JSON.stringify({id:recordId,isEdit:isEdit,payload:payload}));}catch(e){}
 
 let saved=false,lastErr='';
 for(let attempt=1;attempt<=3;attempt++){
 try{
-if(isEdit){
-await logAudit('edit',editIdSnapshot,priorRecord,payload);
-await fbPatch(editIdSnapshot,payload);
-}else{
-await fbPost(payload);
-}
+await logAudit(isEdit?'edit':'create',recordId,isEdit?priorRecord:null,payload);
+await fbPatch(recordId,payload);
 saved=true;break;
 }catch(err){
 lastErr=err.message||String(err);
@@ -633,21 +637,44 @@ showToast('✓ Saved & synced!');resetForm();
 }else{
 showToast('⚠️ Saved locally — will retry when online');
 resetForm();
-setTimeout(()=>retrySend(backupKey,payload),30000);
+setTimeout(()=>retrySend(backupKey,recordId,payload),30000);
 }
 btn.disabled=false; btn.textContent='✓ Save Daily Entry'; btn.className='btn-submit';
 }
 
-async function retrySend(key, payload){
+async function retrySend(key, id, payload){
   try {
-    await fbPost(payload);
+    await fbPatch(id, payload);
     try { localStorage.removeItem(key); } catch(e){}
     showToast('✓ Synced to database!');
     await pollData();
   } catch(e){
     // Try again in 2 minutes
-    setTimeout(()=>retrySend(key, payload), 120000);
+    setTimeout(()=>retrySend(key, id, payload), 120000);
   }
+}
+
+// Picks up any entries that were saved to this browser's local storage but never
+// made it to the database (e.g. the tab was closed or the phone locked right after
+// a failed save, before the 30s/2min retry timers got a chance to run). Runs once,
+// the first time we successfully come online after loading the app.
+let _resumedPendingSaves=false;
+function resumePendingSaves(){
+  if(_resumedPendingSaves)return;
+  _resumedPendingSaves=true;
+  try{
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('pending_')===0)keys.push(k);}
+    keys.forEach(function(k){
+      try{
+        const rec=JSON.parse(localStorage.getItem(k));
+        if(rec&&rec.id&&rec.payload){
+          showToast('Recovering an entry saved before the app closed…');
+          retrySend(k, rec.id, rec.payload);
+        }
+      }catch(e){}
+    });
+  }catch(e){}
 }
 
 function resetForm(){
@@ -1074,7 +1101,7 @@ async function loadBankingData(){
     _lastSalesData=salesData;_lastBankData=bankData;
     var cutoff=document.getElementById('b-bank-date').value||null;
     renderCashOnHand(computeCashOnHand(salesData,bankData,cutoff),cutoff);
-    loadBankingHistory(bankData);
+    loadBankingHistory(salesData,bankData);
   }catch(ex){console.error('loadBankingData',ex);}
 }
 function calcDenomTotal(){
@@ -1132,7 +1159,7 @@ async function saveBankingRecord(){
     }else{alert('Error saving.');}
   }catch(ex){alert('Error: '+ex.message);}
 }
-function loadBankingHistory(bankData){
+function loadBankingHistory(salesData,bankData){
   var hs=document.getElementById('b-history-section');
   var c=document.getElementById('b-history-list');
   if(!bankData||!Object.keys(bankData).length){c.innerHTML='<p style="color:var(--muted);font-size:0.85rem;">No banking records yet.</p>';return;}
@@ -1142,6 +1169,20 @@ function loadBankingHistory(bankData){
     var v=kv[1];
     var cv=v.cashVariance||0;
     var needsReview=(cv!==0)&&!v.reviewedBy;
+    // Re-check this record's numbers against CURRENT sales/banking data. If a sales entry
+    // that fed into this record was added, edited, or deleted after this record was saved,
+    // the frozen cashVariance/cashOnHand above can go stale without anything flagging it.
+    var staleBlock='';
+    if(v.cashOnHand&&typeof v.cashOnHand.total==='number'){
+      var otherBank={};
+      Object.keys(bankData).forEach(function(k2){if(k2!==id)otherBank[k2]=bankData[k2];});
+      var recomputed=computeCashOnHand(salesData,otherBank,v.bankDate);
+      if(Math.abs(recomputed.total-v.cashOnHand.total)>0.01){
+        staleBlock='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--accent2);">'
+          +'&#8635; Recalculated since this was saved — sales data for this period has changed. Expected cash as of '+v.bankDate+' is now '+bfmt(recomputed.total)+' (was '+bfmt(v.cashOnHand.total)+' when this record was saved). Worth a second look.'
+          +'</div>';
+      }
+    }
     var reviewBlock='';
     if(cv!==0){
       if(v.reviewedBy){
@@ -1167,6 +1208,7 @@ function loadBankingHistory(bankData){
       +'</div>'
       +(v.notes?'<p style="margin:8px 0 0;font-style:italic;color:var(--muted);">'+v.notes+'</p>':'')
       +reviewBlock
+      +staleBlock
       +'</div>';
   }).join('');
 }
